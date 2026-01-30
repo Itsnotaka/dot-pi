@@ -36,7 +36,7 @@ importers:
         specifier: latest
         version: 1.42.0(oxlint-tsgolint@0.11.3)
       oxlint-tsgolint:
-        specifier: ^0.11.3
+        specifier: latest
         version: 0.11.3
 
 packages:
