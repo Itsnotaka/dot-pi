@@ -1,6 +1,7 @@
 ---
 description: Search gathers context, oracle creates implementation plan (no implementation)
 ---
+
 If external research is needed, run the "librarian" agent first (single mode) and include its output in the plan request.
 
 Use the subagent tool with the chain parameter to execute this workflow:

@@ -9,14 +9,14 @@ Pi is a terminal-based coding agent by Mario Zechner (`@mariozechner/pi-coding-a
 
 ## Quick Reference
 
-| Topic | File |
-|---|---|
-| [Architecture](architecture.md) | Package structure, modes, core subsystems |
-| [Extensions](extensions.md) | Extension API, events, lifecycle, custom tools |
-| [TUI Components](tui.md) | Text, Container, Box, Markdown, custom rendering |
-| [Configuration](configuration.md) | Settings, CLI flags, models, providers, auth |
-| [Sessions](sessions.md) | Session storage, entries, branching, compaction |
-| [Patterns](patterns.md) | Common recipes, subagent spawning, tool overrides |
+| Topic                             | File                                              |
+| --------------------------------- | ------------------------------------------------- |
+| [Architecture](architecture.md)   | Package structure, modes, core subsystems         |
+| [Extensions](extensions.md)       | Extension API, events, lifecycle, custom tools    |
+| [TUI Components](tui.md)          | Text, Container, Box, Markdown, custom rendering  |
+| [Configuration](configuration.md) | Settings, CLI flags, models, providers, auth      |
+| [Sessions](sessions.md)           | Session storage, entries, branching, compaction   |
+| [Patterns](patterns.md)           | Common recipes, subagent spawning, tool overrides |
 
 ## Key Packages
 
@@ -57,31 +57,37 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 
 export default function (pi: ExtensionAPI) {
-  pi.on("session_start", async (_event, ctx) => {
-    // ctx.ui, ctx.cwd, ctx.sessionManager, ctx.hasUI
-  });
+	pi.on("session_start", async (_event, ctx) => {
+		// ctx.ui, ctx.cwd, ctx.sessionManager, ctx.hasUI
+	});
 
-  pi.registerTool({
-    name: "my_tool",
-    label: "My Tool",
-    description: "What the LLM sees",
-    parameters: Type.Object({
-      arg: Type.String({ description: "Argument" }),
-    }),
-    async execute(toolCallId, params, onUpdate, ctx, signal) {
-      return {
-        content: [{ type: "text", text: "result for LLM" }],
-        details: { data: "for rendering and state" },
-      };
-    },
-    renderCall(args, theme) { /* returns Component */ },
-    renderResult(result, { expanded, isPartial }, theme) { /* returns Component */ },
-  });
+	pi.registerTool({
+		name: "my_tool",
+		label: "My Tool",
+		description: "What the LLM sees",
+		parameters: Type.Object({
+			arg: Type.String({ description: "Argument" }),
+		}),
+		async execute(toolCallId, params, onUpdate, ctx, signal) {
+			return {
+				content: [{ type: "text", text: "result for LLM" }],
+				details: { data: "for rendering and state" },
+			};
+		},
+		renderCall(args, theme) {
+			/* returns Component */
+		},
+		renderResult(result, { expanded, isPartial }, theme) {
+			/* returns Component */
+		},
+	});
 
-  pi.registerCommand("mycmd", {
-    description: "Description",
-    handler: async (args, ctx) => { /* ExtensionCommandContext */ },
-  });
+	pi.registerCommand("mycmd", {
+		description: "Description",
+		handler: async (args, ctx) => {
+			/* ExtensionCommandContext */
+		},
+	});
 }
 ```
 

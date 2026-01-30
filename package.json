@@ -4,8 +4,8 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"fmt": "oxfmt agent/**/*.ts",
-		"lint": "oxlint agent/**/*.ts",
+		"fmt": "oxfmt -c .oxfmtrc.json",
+		"lint": "oxlint -c .oxlintrc.json",
 		"check": "tsgo --noEmit",
 		"fix": "pnpm fmt && pnpm lint --fix"
 	},

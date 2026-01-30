@@ -6,26 +6,27 @@ Located at `~/.pi/agent/settings.json` (global) or `.pi/settings.json` (project)
 
 ```jsonc
 {
-  // Model defaults
-  "defaultProvider": "anthropic",
-  "defaultModel": "claude-sonnet-4-5",
-  "defaultThinkingLevel": "high",      // off, minimal, low, medium, high, xhigh
-  "enabledModels": [                    // restrict Ctrl+P cycling
-    "anthropic/claude-sonnet-4-5",
-    "anthropic/claude-opus-4-5"
-  ],
+	// Model defaults
+	"defaultProvider": "anthropic",
+	"defaultModel": "claude-sonnet-4-5",
+	"defaultThinkingLevel": "high", // off, minimal, low, medium, high, xhigh
+	"enabledModels": [
+		// restrict Ctrl+P cycling
+		"anthropic/claude-sonnet-4-5",
+		"anthropic/claude-opus-4-5",
+	],
 
-  // Discovery paths
-  "skills": ["~/extra-skills"],         // additional skill directories
-  "extensions": ["/path/to/ext.ts"],    // additional extension files
-  "packages": ["npm:@foo/bar@1.0.0"],   // npm/git packages
+	// Discovery paths
+	"skills": ["~/extra-skills"], // additional skill directories
+	"extensions": ["/path/to/ext.ts"], // additional extension files
+	"packages": ["npm:@foo/bar@1.0.0"], // npm/git packages
 
-  // Features
-  "websearch": { "apiKey": "..." },     // Parallel Search API key
-  "enableSkillCommands": true,          // /skill:name commands
+	// Features
+	"websearch": { "apiKey": "..." }, // Parallel Search API key
+	"enableSkillCommands": true, // /skill:name commands
 
-  // Display
-  "lastChangelogVersion": "0.50.3"
+	// Display
+	"lastChangelogVersion": "0.50.3",
 }
 ```
 
@@ -79,8 +80,8 @@ Managed via `/login` command in interactive mode. Stored in `~/.pi/agent/auth.js
 
 ```jsonc
 {
-  "anthropic": { "type": "oauth", "refresh": "...", "access": "...", "expires": 123 },
-  "github-copilot": { "type": "oauth", "refresh": "...", "access": "...", "expires": 123 }
+	"anthropic": { "type": "oauth", "refresh": "...", "access": "...", "expires": 123 },
+	"github-copilot": { "type": "oauth", "refresh": "...", "access": "...", "expires": 123 },
 }
 ```
 
@@ -90,21 +91,25 @@ Environment variables also work: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_
 
 ```typescript
 pi.registerProvider("my-proxy", {
-  baseUrl: "https://proxy.example.com",
-  apiKey: "ENV_VAR_NAME",            // or literal key
-  api: "anthropic-messages",          // or openai-responses, openai-completions
-  headers: { "X-Custom": "value" },
-  authHeader: true,                   // adds Authorization: Bearer
-  models: [{
-    id: "claude-sonnet-4-5",
-    name: "Sonnet via proxy",
-    reasoning: false,
-    input: ["text", "image"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 200000,
-    maxTokens: 16384,
-  }],
-  oauth: { /* login flow */ },
+	baseUrl: "https://proxy.example.com",
+	apiKey: "ENV_VAR_NAME", // or literal key
+	api: "anthropic-messages", // or openai-responses, openai-completions
+	headers: { "X-Custom": "value" },
+	authHeader: true, // adds Authorization: Bearer
+	models: [
+		{
+			id: "claude-sonnet-4-5",
+			name: "Sonnet via proxy",
+			reasoning: false,
+			input: ["text", "image"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 200000,
+			maxTokens: 16384,
+		},
+	],
+	oauth: {
+		/* login flow */
+	},
 });
 
 // Override baseUrl for existing provider
@@ -119,6 +124,7 @@ Markdown files in `~/.pi/agent/prompts/` or `.pi/prompts/`. Invoked as `/name ar
 ---
 description: What this template does
 ---
+
 Template content here. Use $@ for all args, $1 $2 for positional.
 ```
 
@@ -128,10 +134,7 @@ Install via settings.json:
 
 ```json
 {
-  "packages": [
-    "npm:@scope/package@version",
-    "git:github.com/user/repo@tag"
-  ]
+	"packages": ["npm:@scope/package@version", "git:github.com/user/repo@tag"]
 }
 ```
 

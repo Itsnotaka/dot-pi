@@ -1,6 +1,7 @@
 ---
 description: Full implementation workflow - search gathers context, oracle creates plan, worker implements
 ---
+
 If external research is needed, run the "librarian" agent first (single mode) and include its output in the chain.
 
 Use the subagent tool with the chain parameter to execute this workflow:

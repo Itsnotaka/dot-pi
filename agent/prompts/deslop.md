@@ -1,6 +1,7 @@
 ---
 description: Remove AI code slop from recent changes
 ---
+
 Check the changes we made, and remove all AI generated slop introduced in this change.
 
 This includes:

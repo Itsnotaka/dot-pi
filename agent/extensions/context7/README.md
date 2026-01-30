@@ -9,9 +9,9 @@ Searches up-to-date library/package documentation via the [Context7](https://con
 
 ```json
 {
-  "context7": {
-    "apiKey": "ctx7sk_..."
-  }
+	"context7": {
+		"apiKey": "ctx7sk_..."
+	}
 }
 ```
 
@@ -20,6 +20,7 @@ Or set `CONTEXT7_API_KEY` env var.
 ## Tool: `context7-search`
 
 **Parameters:**
+
 - `libraryName` (required) — library name (e.g. `"react"`, `"next.js"`)
 - `query` (required) — what you need (e.g. `"server components"`)
 - `topic` (optional) — topic filter (e.g. `"routing"`)

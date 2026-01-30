@@ -18,12 +18,19 @@ import { existsSync } from "fs";
 import { extname, isAbsolute, resolve } from "path";
 
 const JS_LINT_EXTS = new Set([
-	".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts",
-	".vue", ".svelte", ".astro",
+	".ts",
+	".tsx",
+	".js",
+	".jsx",
+	".mjs",
+	".cjs",
+	".mts",
+	".cts",
+	".vue",
+	".svelte",
+	".astro",
 ]);
-const JS_FMT_ONLY_EXTS = new Set([
-	".json", ".jsonc", ".json5", ".css", ".scss", ".less", ".md", ".mdx",
-]);
+const JS_FMT_ONLY_EXTS = new Set([".json", ".jsonc", ".json5", ".css", ".scss", ".less", ".md", ".mdx"]);
 const PY_EXTS = new Set([".py", ".pyi"]);
 
 interface ToolCmd {
@@ -47,9 +54,16 @@ export function detectJsToolchain(cwd: string): ToolChain {
 		chain.formatter = { cmd: "npx", args: ["oxfmt"] };
 	} else if (
 		hasAnyFile(cwd, [
-			".prettierrc", ".prettierrc.json", ".prettierrc.yaml", ".prettierrc.yml",
-			".prettierrc.js", ".prettierrc.cjs", ".prettierrc.mjs",
-			"prettier.config.js", "prettier.config.cjs", "prettier.config.mjs",
+			".prettierrc",
+			".prettierrc.json",
+			".prettierrc.yaml",
+			".prettierrc.yml",
+			".prettierrc.js",
+			".prettierrc.cjs",
+			".prettierrc.mjs",
+			"prettier.config.js",
+			"prettier.config.cjs",
+			"prettier.config.mjs",
 		])
 	) {
 		chain.formatter = { cmd: "npx", args: ["prettier", "--write"] };
@@ -59,8 +73,12 @@ export function detectJsToolchain(cwd: string): ToolChain {
 		chain.linter = { cmd: "npx", args: ["oxlint", "--fix"] };
 	} else if (
 		hasAnyFile(cwd, [
-			"eslint.config.js", "eslint.config.mjs", "eslint.config.cjs",
-			"eslint.config.ts", "eslint.config.mts", "eslint.config.cts",
+			"eslint.config.js",
+			"eslint.config.mjs",
+			"eslint.config.cjs",
+			"eslint.config.ts",
+			"eslint.config.mts",
+			"eslint.config.cts",
 		])
 	) {
 		chain.linter = { cmd: "npx", args: ["eslint", "--fix"] };
@@ -139,9 +157,7 @@ export default function (pi: ExtensionAPI) {
 		const allFiles = [...editedFiles];
 		editedFiles.clear();
 
-		const resolved = allFiles
-			.map((f) => (isAbsolute(f) ? f : resolve(cwd, f)))
-			.filter((f) => existsSync(f));
+		const resolved = allFiles.map((f) => (isAbsolute(f) ? f : resolve(cwd, f))).filter((f) => existsSync(f));
 
 		if (resolved.length === 0) return;
 

@@ -8,10 +8,17 @@ Sessions stored in `~/.pi/agent/sessions/` as JSON files. Each file is a flat ar
 
 ```typescript
 type SessionEntry =
-  | { type: "session"; id: string; version: number; timestamp: string; cwd: string }
-  | { type: "message"; id: string; parentId: string; message: Message; timestamp: number }
-  | { type: "compaction"; id: string; parentId: string; summary: string; firstKeptEntryId: string; tokensBefore: number }
-  | { type: "custom"; id: string; parentId: string; customType: string; data?: any };
+	| { type: "session"; id: string; version: number; timestamp: string; cwd: string }
+	| { type: "message"; id: string; parentId: string; message: Message; timestamp: number }
+	| {
+			type: "compaction";
+			id: string;
+			parentId: string;
+			summary: string;
+			firstKeptEntryId: string;
+			tokensBefore: number;
+	  }
+	| { type: "custom"; id: string; parentId: string; customType: string; data?: any };
 ```
 
 Every entry has `id` and `parentId` forming a tree. Multiple children = branches (from `/fork` or `/tree`).
@@ -20,10 +27,17 @@ Every entry has `id` and `parentId` forming a tree. Multiple children = branches
 
 ```typescript
 type Message =
-  | { role: "user"; content: ContentPart[]; timestamp: number }
-  | { role: "assistant"; content: ContentPart[]; usage?: Usage; model?: string; stopReason?: string }
-  | { role: "toolResult"; toolCallId: string; toolName: string; content: ContentPart[]; details?: any; isError?: boolean }
-  | { role: "custom"; customType: string; content: string; display?: boolean; details?: any };
+	| { role: "user"; content: ContentPart[]; timestamp: number }
+	| { role: "assistant"; content: ContentPart[]; usage?: Usage; model?: string; stopReason?: string }
+	| {
+			role: "toolResult";
+			toolCallId: string;
+			toolName: string;
+			content: ContentPart[];
+			details?: any;
+			isError?: boolean;
+	  }
+	| { role: "custom"; customType: string; content: string; display?: boolean; details?: any };
 ```
 
 ## SessionManager API
@@ -31,11 +45,11 @@ type Message =
 Available via `ctx.sessionManager` (read-only in event handlers):
 
 ```typescript
-sessionManager.getEntries()        // All entries in session file
-sessionManager.getBranch()         // Entries on current branch (root → leaf)
-sessionManager.getLeafId()         // Current leaf entry ID
-sessionManager.getSessionFile()    // Session file path (undefined if ephemeral)
-sessionManager.getLabel(entryId)   // Get label for entry
+sessionManager.getEntries(); // All entries in session file
+sessionManager.getBranch(); // Entries on current branch (root → leaf)
+sessionManager.getLeafId(); // Current leaf entry ID
+sessionManager.getSessionFile(); // Session file path (undefined if ephemeral)
+sessionManager.getLabel(entryId); // Get label for entry
 ```
 
 ## Branching Model

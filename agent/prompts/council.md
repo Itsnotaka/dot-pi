@@ -1,6 +1,7 @@
 ---
 description: Deep codebase exploration using parallel subagents for a given area of interest
 ---
+
 Based on the given area of interest, please:
 
 1. Dig around the codebase in terms of that given area of interest, gather general information such as keywords and architecture overview.

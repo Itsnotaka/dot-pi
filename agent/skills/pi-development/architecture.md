@@ -54,12 +54,12 @@ dist/
 
 Pi runs in one of three modes:
 
-| Mode | Flag | Description |
-|---|---|---|
-| Interactive | (default) | Full TUI with editor, chat, streaming |
-| Print | `-p` | One-shot: prompt in, text out, exit |
-| JSON | `--mode json` | Streams JSON events to stdout (used by subagents) |
-| RPC | `--mode rpc` | JSON-RPC over stdio for embedding |
+| Mode        | Flag          | Description                                       |
+| ----------- | ------------- | ------------------------------------------------- |
+| Interactive | (default)     | Full TUI with editor, chat, streaming             |
+| Print       | `-p`          | One-shot: prompt in, text out, exit               |
+| JSON        | `--mode json` | Streams JSON events to stdout (used by subagents) |
+| RPC         | `--mode rpc`  | JSON-RPC over stdio for embedding                 |
 
 ## Agent Loop
 
@@ -83,6 +83,7 @@ User prompt
 ## Tool Result Shape
 
 Every tool returns:
+
 ```typescript
 {
   content: ContentPart[];     // Sent to LLM (text, images)
@@ -107,6 +108,7 @@ import { truncateHead, truncateTail, DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES } from
 ## Extension Loading
 
 Extensions discovered from:
+
 1. `~/.pi/agent/extensions/*.ts` (single file)
 2. `~/.pi/agent/extensions/*/index.ts` (directory)
 3. `.pi/extensions/` (project-local, same patterns)
@@ -120,6 +122,7 @@ Extensions load in discovery order. Event handlers chain: multiple extensions ca
 ## System Prompt
 
 Built by `system-prompt.js`:
+
 1. Base coding assistant prompt
 2. `SYSTEM.md` content (if exists in `~/.pi/agent/` or `.pi/`)
 3. `--append-system-prompt` flag content
