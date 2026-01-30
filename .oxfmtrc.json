@@ -1,0 +1,7 @@
+{
+	"$schema": "https://unpkg.com/oxfmt/configuration_schema.json",
+	"useTabs": true,
+	"printWidth": 120,
+	"indentWidth": 4,
+	"quoteStyle": "double"
+}
