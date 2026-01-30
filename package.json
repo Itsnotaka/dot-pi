@@ -6,7 +6,7 @@
 	"scripts": {
 		"fmt": "oxfmt agent/**/*.ts",
 		"lint": "oxlint agent/**/*.ts",
-		"check": "tsc --noEmit",
+		"check": "tsgo --noEmit",
 		"fix": "pnpm fmt && pnpm lint --fix"
 	},
 	"devDependencies": {
@@ -16,8 +16,9 @@
 		"@mariozechner/pi-tui": "latest",
 		"@sinclair/typebox": "latest",
 		"@types/node": "latest",
+		"@typescript/native-preview": "latest",
 		"oxfmt": "latest",
 		"oxlint": "latest",
-		"typescript": "latest"
+		"oxlint-tsgolint": "latest"
 	}
 }
