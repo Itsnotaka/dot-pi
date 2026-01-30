@@ -1,6 +1,7 @@
 # .pi Configuration Repository
 
 This repository contains my personal pi configuration, including:
+
 - Custom extensions
 - Subagents
 - Skills
