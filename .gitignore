@@ -3,3 +3,4 @@ auth.json
 sessions/
 .DS_Store
 node_modules/
+.cache

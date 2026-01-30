@@ -67,6 +67,54 @@ function formatUsageStats(
   return parts.join(" ");
 }
 
+type ThemeFg = (color: any, text: string) => string;
+
+const thinkingColorMap: Record<string, string> = {
+  minimal: "thinkingMinimal",
+  low: "thinkingLow",
+  medium: "thinkingMedium",
+  high: "thinkingHigh",
+  xhigh: "thinkingXhigh",
+};
+
+function formatStatusLine(
+  r: SingleResult,
+  themeFg: ThemeFg,
+  themeBold: (text: string) => string
+): string {
+  const tokenParts: string[] = [];
+  if (r.usage.turns)
+    tokenParts.push(`${r.usage.turns} turn${r.usage.turns > 1 ? "s" : ""}`);
+  if (r.usage.input) tokenParts.push(`↑${formatTokens(r.usage.input)}`);
+  if (r.usage.output) tokenParts.push(`↓${formatTokens(r.usage.output)}`);
+  if (r.usage.cacheRead) tokenParts.push(`R${formatTokens(r.usage.cacheRead)}`);
+  if (r.usage.cacheWrite)
+    tokenParts.push(`W${formatTokens(r.usage.cacheWrite)}`);
+  if (r.usage.cost) tokenParts.push(`$${r.usage.cost.toFixed(4)}`);
+  if (r.usage.contextTokens && r.usage.contextTokens > 0)
+    tokenParts.push(`ctx:${formatTokens(r.usage.contextTokens)}`);
+
+  const usageStr =
+    tokenParts.length > 0 ? themeFg("dim", tokenParts.join(" ")) : "";
+
+  const model = r.model || "unknown";
+  const provider = r.provider || "";
+  const thinking = r.thinking;
+
+  let modelStr: string;
+  if (thinking && thinking !== "off") {
+    const color = thinkingColorMap[thinking] || "thinkingMedium";
+    modelStr = themeFg(color, `${model} (${thinking})`);
+  } else {
+    modelStr = themeFg("toolTitle", model);
+  }
+
+  const providerStr = provider ? themeFg("muted", `${provider}/`) : "";
+
+  const parts = [usageStr, `${providerStr}${modelStr}`].filter(Boolean);
+  return parts.join(themeFg("dim", " · "));
+}
+
 function formatToolCall(
   toolName: string,
   args: Record<string, unknown>,
@@ -171,6 +219,8 @@ interface SingleResult {
   stderr: string;
   usage: UsageStats;
   model?: string;
+  provider?: string;
+  thinking?: string;
   stopReason?: string;
   errorMessage?: string;
   step?: number;
@@ -317,6 +367,8 @@ async function runSingleAgent(
       turns: 0,
     },
     model: agent.model,
+    provider: undefined,
+    thinking: agent.thinking,
     step,
   };
 
@@ -379,6 +431,8 @@ async function runSingleAgent(
             }
             if (!currentResult.model && msg.model)
               currentResult.model = msg.model;
+            if (!currentResult.provider && msg.provider)
+              currentResult.provider = msg.provider;
             if (msg.stopReason) currentResult.stopReason = msg.stopReason;
             if (msg.errorMessage) currentResult.errorMessage = msg.errorMessage;
           }
@@ -687,7 +741,9 @@ export default function (pi: ExtensionAPI) {
           };
 
         // Track all results for streaming updates
-        const allResults: SingleResult[] = Array.from({ length: params.tasks.length });
+        const allResults: SingleResult[] = Array.from({
+          length: params.tasks.length,
+        });
 
         // Initialize placeholder results
         for (let i = 0; i < params.tasks.length; i++) {
@@ -977,10 +1033,14 @@ export default function (pi: ExtensionAPI) {
               );
             }
           }
-          const usageStr = formatUsageStats(r.usage, r.model);
-          if (usageStr) {
+          const statusLine = formatStatusLine(
+            r,
+            theme.fg.bind(theme),
+            theme.bold.bind(theme)
+          );
+          if (statusLine) {
             container.addChild(new Spacer(1));
-            container.addChild(new Text(theme.fg("dim", usageStr), 0, 0));
+            container.addChild(new Text(statusLine, 0, 0));
           }
           return container;
         }
@@ -997,8 +1057,12 @@ export default function (pi: ExtensionAPI) {
           if (displayItems.length > COLLAPSED_ITEM_COUNT)
             text += `\n${theme.fg("muted", "(Ctrl+O to expand)")}`;
         }
-        const usageStr = formatUsageStats(r.usage, r.model);
-        if (usageStr) text += `\n${theme.fg("dim", usageStr)}`;
+        const statusLine = formatStatusLine(
+          r,
+          theme.fg.bind(theme),
+          theme.bold.bind(theme)
+        );
+        if (statusLine) text += `\n${statusLine}`;
         return new Text(text, 0, 0);
       }
 
@@ -1097,9 +1161,12 @@ export default function (pi: ExtensionAPI) {
               );
             }
 
-            const stepUsage = formatUsageStats(r.usage, r.model);
-            if (stepUsage)
-              container.addChild(new Text(theme.fg("dim", stepUsage), 0, 0));
+            const stepStatus = formatStatusLine(
+              r,
+              theme.fg.bind(theme),
+              theme.bold.bind(theme)
+            );
+            if (stepStatus) container.addChild(new Text(stepStatus, 0, 0));
           }
 
           const usageStr = formatUsageStats(aggregateUsage(details.results));
@@ -1211,9 +1278,12 @@ export default function (pi: ExtensionAPI) {
               );
             }
 
-            const taskUsage = formatUsageStats(r.usage, r.model);
-            if (taskUsage)
-              container.addChild(new Text(theme.fg("dim", taskUsage), 0, 0));
+            const taskStatus = formatStatusLine(
+              r,
+              theme.fg.bind(theme),
+              theme.bold.bind(theme)
+            );
+            if (taskStatus) container.addChild(new Text(taskStatus, 0, 0));
           }
 
           const usageStr = formatUsageStats(aggregateUsage(details.results));

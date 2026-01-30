@@ -1,1 +1,0 @@
-../extensions/subagents/agents/search.md

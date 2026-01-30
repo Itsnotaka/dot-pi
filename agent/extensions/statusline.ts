@@ -73,7 +73,9 @@ export default function (pi: ExtensionAPI) {
             leftParts.push(contextStr);
           }
 
-          const model = ctx.model?.id || "no-model";
+          const provider = ctx.model?.provider;
+          const modelId = ctx.model?.id || "no-model";
+          const model = provider ? `${provider}/${modelId}` : modelId;
           const thinkingLevel = pi.getThinkingLevel();
 
           if (thinkingLevel && thinkingLevel !== "off") {
