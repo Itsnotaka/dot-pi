@@ -1,9 +1,8 @@
 /**
- * Parallel Search Tool
+ * Parallel Search + direct URL fetch tool.
  *
- * Uses Parallel Search API to retrieve web results for a query/objective.
- *
- * Requires PARALLEL_API_KEY env var or .pi settings override.
+ * Requires PARALLEL_API_KEY env var or .pi settings override for search.
+ * URLs passed in the query are fetched directly (no API key needed).
  */
 
 import * as fs from "node:fs";
@@ -21,6 +20,9 @@ const API_URL = "https://api.parallel.ai/v1beta/search";
 const BETA_HEADER = "search-extract-2025-10-10";
 const SETTINGS_PATH = path.join(os.homedir(), ".pi", "agent", "settings.json");
 
+const MAX_FETCH_SIZE = 5 * 1024 * 1024; // 5MB
+const DEFAULT_FETCH_TIMEOUT = 30_000;
+
 type SearchResult = {
   url: string;
   title?: string | null;
@@ -35,16 +37,15 @@ type SearchResponse = {
 };
 
 type SearchParams = {
-  objective: string;
-  search_queries?: string[];
+  query: string;
   max_results?: number;
   max_chars_per_result?: number;
 };
 
 type SpinnerDetails = {
-  stage: "searching";
+  stage: "searching" | "fetching";
   spinnerIndex: number;
-  objective: string;
+  query: string;
   preview: string;
 };
 
@@ -87,35 +88,145 @@ function formatResultLine(result: SearchResult, theme: any): string {
   return parts.join("");
 }
 
+function isUrl(text: string): boolean {
+  const trimmed = text.trim();
+  return /^https?:\/\/\S+$/i.test(trimmed);
+}
+
+function htmlToMarkdown(html: string): string {
+  let text = html;
+
+  text = text.replace(/<(script|style|noscript|svg|iframe)[^>]*>[\s\S]*?<\/\1>/gi, "");
+
+  text = text.replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, "\n# $1\n");
+  text = text.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, "\n## $1\n");
+  text = text.replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, "\n### $1\n");
+  text = text.replace(/<h4[^>]*>([\s\S]*?)<\/h4>/gi, "\n#### $1\n");
+  text = text.replace(/<h5[^>]*>([\s\S]*?)<\/h5>/gi, "\n##### $1\n");
+  text = text.replace(/<h6[^>]*>([\s\S]*?)<\/h6>/gi, "\n###### $1\n");
+
+  text = text.replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, "[$2]($1)");
+  text = text.replace(/<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*\/?>/gi, "![$1]($2)");
+  text = text.replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*\/?>/gi, "![$2]($1)");
+  text = text.replace(/<img[^>]*src="([^"]*)"[^>]*\/?>/gi, "![]($1)");
+
+  text = text.replace(/<pre[^>]*><code[^>]*class="[^"]*language-(\w+)"[^>]*>([\s\S]*?)<\/code><\/pre>/gi, "\n```$1\n$2\n```\n");
+  text = text.replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, "\n```\n$1\n```\n");
+  text = text.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gi, "\n```\n$1\n```\n");
+  text = text.replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, "`$1`");
+
+  text = text.replace(/<(strong|b)[^>]*>([\s\S]*?)<\/\1>/gi, "**$2**");
+  text = text.replace(/<(em|i)[^>]*>([\s\S]*?)<\/\1>/gi, "*$2*");
+  text = text.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, "- $1\n");
+  text = text.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, (_, content) => {
+    return content.split("\n").map((line: string) => `> ${line}`).join("\n") + "\n";
+  });
+
+  text = text.replace(/<hr[^>]*\/?>/gi, "\n---\n");
+  text = text.replace(/<br[^>]*\/?>/gi, "\n");
+  text = text.replace(/<\/(p|div|section|article|header|footer|main|nav|aside)>/gi, "\n\n");
+  text = text.replace(/<(p|div|section|article|header|footer|main|nav|aside)[^>]*>/gi, "");
+
+  text = text.replace(/<\/td>/gi, " | ");
+  text = text.replace(/<\/th>/gi, " | ");
+  text = text.replace(/<tr[^>]*>/gi, "| ");
+  text = text.replace(/<\/tr>/gi, "\n");
+
+  text = text.replace(/<[^>]+>/g, "");
+
+  text = text.replace(/&amp;/g, "&");
+  text = text.replace(/&lt;/g, "<");
+  text = text.replace(/&gt;/g, ">");
+  text = text.replace(/&quot;/g, '"');
+  text = text.replace(/&#39;/g, "'");
+  text = text.replace(/&nbsp;/g, " ");
+  text = text.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)));
+  text = text.replace(/&\w+;/g, "");
+
+  text = text.replace(/[ \t]+/g, " ");
+  text = text.replace(/\n{3,}/g, "\n\n");
+  text = text.trim();
+
+  return text;
+}
+
+function extractTitle(html: string): string | null {
+  const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (!match) return null;
+  return match[1].replace(/<[^>]+>/g, "").trim() || null;
+}
+
+async function fetchUrl(url: string, signal?: AbortSignal): Promise<{ content: string; title: string | null; contentType: string }> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_FETCH_TIMEOUT);
+  const combinedSignal = signal
+    ? AbortSignal.any([controller.signal, signal])
+    : controller.signal;
+
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+  };
+
+  const initial = await fetch(url, { signal: combinedSignal, headers, redirect: "follow" });
+
+  const response =
+    initial.status === 403 && initial.headers.get("cf-mitigated") === "challenge"
+      ? await fetch(url, { signal: combinedSignal, headers: { ...headers, "User-Agent": "pi-agent" }, redirect: "follow" })
+      : initial;
+
+  clearTimeout(timeoutId);
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  const contentLength = response.headers.get("content-length");
+  if (contentLength && parseInt(contentLength) > MAX_FETCH_SIZE) {
+    throw new Error("Response too large (exceeds 5MB limit)");
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  if (arrayBuffer.byteLength > MAX_FETCH_SIZE) {
+    throw new Error("Response too large (exceeds 5MB limit)");
+  }
+
+  const raw = new TextDecoder().decode(arrayBuffer);
+  const contentType = response.headers.get("content-type") || "";
+
+  let title: string | null = null;
+  let content: string;
+
+  if (contentType.includes("text/html") || contentType.includes("application/xhtml")) {
+    title = extractTitle(raw);
+    content = htmlToMarkdown(raw);
+  } else {
+    content = raw;
+  }
+
+  return { content, title, contentType };
+}
+
 export default function (pi: ExtensionAPI) {
   pi.registerTool({
-    name: "websearch",
+    name: "WebSearch",
     label: "Web Search",
-    description: "Search the web using Parallel Search API.",
+    description:
+      "Search the web or fetch a URL. " +
+      "Provide a URL (starting with http:// or https://) to fetch that page directly, " +
+      "or provide search terms/question to search the web.",
     parameters: Type.Object({
-      objective: Type.String({ description: "Search objective or question" }),
-      search_queries: Type.Optional(Type.Array(Type.String(), { description: "Optional keyword queries" })),
+      query: Type.String({ description: "URL to fetch or search query/keywords" }),
       max_results: Type.Optional(Type.Number({ description: "Max results to return" })),
       max_chars_per_result: Type.Optional(Type.Number({ description: "Max chars per excerpt" })),
     }),
 
     async execute(_toolCallId, params, onUpdate, ctx, signal) {
-      const { objective, search_queries, max_results, max_chars_per_result } = params as SearchParams;
-      const apiKey = loadApiKey();
-      if (!apiKey) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Missing API key. Set it in ${SETTINGS_PATH} under websearch.apiKey to use websearch.`,
-            },
-          ],
-          details: { ok: false },
-          isError: true,
-        };
-      }
+      const { query, max_results, max_chars_per_result } = params as SearchParams;
+      const directUrl = isUrl(query);
 
-      const preview = shorten(objective, 80);
+      const preview = shorten(query, 80);
       const canAnimate = !!onUpdate && ctx.hasUI;
       let spinnerIndex = 0;
       let spinnerTimer: ReturnType<typeof setInterval> | undefined;
@@ -127,14 +238,14 @@ export default function (pi: ExtensionAPI) {
         }
       };
 
-      const emitSpinnerUpdate = () => {
+      const emitSpinnerUpdate = (stage: "searching" | "fetching") => {
         if (!onUpdate || !canAnimate) return;
         onUpdate({
-          content: [{ type: "text", text: `Searching: ${preview}` }],
+          content: [{ type: "text", text: stage === "fetching" ? "Fetching…" : "Searching…" }],
           details: {
-            stage: "searching",
+            stage,
             spinnerIndex,
-            objective,
+            query,
             preview,
           } as SpinnerDetails,
         });
@@ -142,15 +253,38 @@ export default function (pi: ExtensionAPI) {
       };
 
       if (canAnimate) {
-        emitSpinnerUpdate();
-        spinnerTimer = setInterval(emitSpinnerUpdate, SPINNER_INTERVAL_MS);
+        emitSpinnerUpdate(directUrl ? "fetching" : "searching");
+        spinnerTimer = setInterval(() => emitSpinnerUpdate(directUrl ? "fetching" : "searching"), SPINNER_INTERVAL_MS);
         signal?.addEventListener("abort", stopSpinner, { once: true });
       }
 
       try {
+        if (directUrl) {
+          const url = query.trim();
+          const { content, title, contentType } = await fetchUrl(url, signal);
+          const header = title ? `${title}\n${url} (${contentType})\n\n` : `${url} (${contentType})\n\n`;
+          return {
+            content: [{ type: "text", text: header + content }],
+            details: { ok: true, mode: "fetch", url, title, query },
+          };
+        }
+
+        const apiKey = loadApiKey();
+        if (!apiKey) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Missing API key. Set it in ${SETTINGS_PATH} under websearch.apiKey to use websearch.`,
+              },
+            ],
+            details: { ok: false },
+            isError: true,
+          };
+        }
+
         const body = {
-          objective,
-          search_queries,
+          objective: query,
           max_results: max_results ?? DEFAULT_MAX_RESULTS,
           excerpts: { max_chars_per_result: max_chars_per_result ?? DEFAULT_MAX_CHARS },
         };
@@ -187,7 +321,7 @@ export default function (pi: ExtensionAPI) {
 
         return {
           content: [{ type: "text", text: rendered || "(no results)" }],
-          details: { ok: true, count: results.length, search_id: data.search_id ?? null, objective },
+          details: { ok: true, mode: "search", count: results.length, search_id: data.search_id ?? null, query },
         };
       } finally {
         stopSpinner();
@@ -195,16 +329,28 @@ export default function (pi: ExtensionAPI) {
     },
 
     renderCall(args, theme) {
-      const objective = typeof args.objective === "string" ? args.objective : "";
-      const preview = objective ? shorten(objective, 60) : "";
-      const title = theme.fg("toolTitle", theme.bold("Web Search"));
-      const detail = preview ? ` ${theme.fg("muted", "·")} ${theme.fg("muted", preview)}` : "";
+      const query = typeof args.query === "string" ? args.query : "";
+      const isFetch = isUrl(query);
+      const label = isFetch ? "Web Fetch" : "Web Search";
+      const preview = query ? shorten(query, 60) : "";
+      const title = theme.fg("toolTitle", theme.bold(label));
+      const detail = preview ? ` ${theme.fg("muted", "·")} ${theme.fg(isFetch ? "accent" : "muted", preview)}` : "";
       return new Text(`${title}${detail}`, 0, 0);
     },
 
     renderResult(result, { expanded, isPartial }, theme) {
       const details = result.details as
-        | { count?: number; search_id?: string | null; spinnerIndex?: number; preview?: string; objective?: string }
+        | {
+            mode?: "search" | "fetch";
+            count?: number;
+            search_id?: string | null;
+            url?: string;
+            title?: string | null;
+            spinnerIndex?: number;
+            preview?: string;
+            query?: string;
+            stage?: "searching" | "fetching";
+          }
         | undefined;
       const content = result.content?.[0];
       const raw = content?.type === "text" ? content.text : "(no results)";
@@ -212,18 +358,34 @@ export default function (pi: ExtensionAPI) {
       if (isPartial) {
         const spinnerIndex = details?.spinnerIndex ?? 0;
         const spinner = SPINNER_FRAMES[spinnerIndex % SPINNER_FRAMES.length] ?? "⠋";
-        const text = `${theme.fg("accent", spinner)} ${theme.fg("thinkingText", "Searching web…")}`;
+        const stage = details?.stage === "fetching" ? "Fetching…" : "Searching…";
+        const text = `${theme.fg("accent", spinner)} ${theme.fg("thinkingText", stage)}`;
         return new Text(text, 0, 0);
       }
 
-      // Parse result blocks
+      if (details?.mode === "fetch") {
+        const url = details.url || "";
+        const title = details.title || "";
+        if (!expanded) {
+          let hostname = "";
+          try { hostname = new URL(url).hostname.replace(/^www\./, ""); } catch {}
+          const label = title ? shorten(title, 48) : hostname;
+          return new Text(
+            `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "Web Fetch")} ${theme.fg("accent", hostname)}${label && label !== hostname ? ` ${theme.fg("muted", label)}` : ""}`,
+            0, 0,
+          );
+        }
+        const header = `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "Web Fetch ")}${theme.fg("accent", url)}`;
+        const bodyPreview = shorten(raw.split("\n").slice(2).join("\n").trim(), 500);
+        return new Text(`${header}\n${theme.fg("muted", bodyPreview)}`, 0, 0);
+      }
+
       const blocks = raw
         .split("\n\n")
         .map((block) => block.trim())
         .filter(Boolean);
 
       if (!expanded) {
-        // Collapsed: single line with count + short URL list
         const count = details?.count ?? blocks.length;
         const urls = blocks
           .map((block) => {
@@ -245,7 +407,6 @@ export default function (pi: ExtensionAPI) {
         return new Text(text, 0, 0);
       }
 
-      // Expanded: full result list
       const lines = blocks.map((block) => {
         const urlLine = block.split("\n")[1];
         return urlLine ? formatResultLine({ url: urlLine, title: block.split("\n")[0] }, theme) : block;
