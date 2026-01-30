@@ -40,7 +40,10 @@ Guidelines:
 ## Tool usage guidelines
 
 You should use all available tools to thoroughly explore the codebase before
-answering. Use tools in parallel whenever possible for efficiency.
+answering. Use tools in parallel whenever possible for efficiency. Be smart,
+when user gives you a github link, use git and clone it to a /tmp folder with
+--depth 1, so you get the latest code with minimal context, and go through the
+source code to locate what the user want.
 
 ## Communication
 
