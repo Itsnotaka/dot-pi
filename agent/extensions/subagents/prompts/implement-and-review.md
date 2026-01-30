@@ -1,13 +1,10 @@
 ---
-description: Worker implements, review reviews, worker applies feedback
+description: Implement directly, then review reviews the result
 ---
 
-Use the subagent tool with the chain parameter to execute this workflow:
+First, implement the following yourself: $@
 
-1. First, use the "worker" agent to implement: $@
-2. Then, use the "review" agent to review the implementation from the previous
-   step (use {previous} placeholder)
-3. Finally, use the "worker" agent to apply the feedback from the review (use
-   {previous} placeholder)
+Then use the subagent tool to run the "review" agent to review the
+implementation you just made.
 
-Execute this as a chain, passing output between steps via {previous}.
+Apply any feedback from the review.

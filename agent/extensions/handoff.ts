@@ -1,20 +1,12 @@
 /**
- * Handoff extension - transfer context to a new focused session
+ * Handoff extension — transfer context to a new focused session.
  *
- * Instead of compacting (which is lossy), handoff extracts what matters
- * for your next task and creates a new session with a generated prompt.
- *
- * Handoff encourages focused threads by moving relevant context forward
- * without stacking summaries. You specify the goal, and Amp generates
- * a focused prompt with relevant files for the new thread.
+ * Generates a prompt for a new session using the current conversation and goal.
  *
  * Usage:
- *   /handoff now implement this for teams as well, not just individual users
+ *   /handoff now implement this for teams as well
  *   /handoff execute phase one of the created plan
- *   /handoff check the rest of the codebase and find other places that need this fix
- *
- * The generated prompt appears as a draft in the editor for review/editing
- * before you submit, ensuring no unintended loss of context.
+ *   /handoff check the rest of the codebase for this fix
  */
 
 import type { ExtensionAPI, SessionEntry } from "@mariozechner/pi-coding-agent";
@@ -37,6 +29,19 @@ Rules:
 - If code patterns or conventions were established, show a brief example rather than describing them.
 - The task must be specific and actionable. "Implement X" beats "Continue working on X".
 
+When extracting context, write from first person perspective ("I did...", "I told you...").
+
+Consider what would be useful to know based on the user's goal:
+- What did I just do or implement?
+- What instructions did I already give which are still relevant?
+- What files am I working on that should continue?
+- Did I provide a plan or spec that should be included?
+- What libraries, patterns, constraints, or preferences matter?
+- What important technical details did I discover?
+- What caveats, limitations, or open questions exist?
+
+Focus on capabilities and behavior, not file-by-file changes. Avoid excessive implementation details unless critical.
+
 Format:
 
 ## Context
@@ -45,7 +50,7 @@ Format:
 
 ## Files
 
-[Only files the new thread needs to read or modify. Use exact paths. Annotate when helpful:]
+[Only files the new thread needs to read or modify. Max 10. Most important first.]
 - path/to/file.ts — what's relevant about it
 - path/to/other.ts
 
@@ -73,7 +78,6 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      // Gather conversation context from current branch
       const branch = ctx.sessionManager.getBranch();
       const messages = branch
         .filter(
@@ -87,12 +91,10 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      // Convert to LLM format and serialize
       const llmMessages = convertToLlm(messages);
       const conversationText = serializeConversation(llmMessages);
       const currentSessionFile = ctx.sessionManager.getSessionFile();
 
-      // Generate the handoff prompt with loader UI
       const result = await ctx.ui.custom<string | null>(
         (tui, theme, _kb, done) => {
           const loader = new BorderedLoader(
@@ -150,7 +152,6 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      // Let user edit the generated prompt
       const editedPrompt = await ctx.ui.editor("Edit handoff prompt", result);
 
       if (editedPrompt === undefined) {
@@ -158,7 +159,6 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      // Create new session with parent tracking
       const newSessionResult = await ctx.newSession({
         parentSession: currentSessionFile,
       });
@@ -168,7 +168,6 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      // Set the edited prompt in the main editor for submission
       ctx.ui.setEditorText(editedPrompt);
       ctx.ui.notify("Handoff ready. Submit when ready.", "info");
     },

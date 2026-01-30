@@ -1,4 +1,4 @@
-# Subagent Example
+# Subagent Extension
 
 Delegate tasks to specialized subagents with isolated context windows.
 
@@ -15,20 +15,19 @@ Delegate tasks to specialized subagents with isolated context windows.
 ## Structure
 
 ```
-subagent/
+subagents/
 ├── README.md            # This file
 ├── index.ts             # The extension (entry point)
 ├── agents.ts            # Agent discovery logic
-├── agents/              # Sample agent definitions
-│   ├── search.md        # Fast local recon, returns compressed context
-│   ├── oracle.md        # Deep analysis + implementation plan
-│   ├── review.md        # Code review
-│   ├── librarian.md     # External research (web)
-│   └── worker.md        # General-purpose (full capabilities)
+├── agents/              # Reference agent definitions
+│   ├── finder.md        # Fast parallel codebase search
+│   ├── oracle.md        # Deep analysis, planning, debugging
+│   ├── review.md        # Code review for quality/security
+│   └── librarian.md     # Codebase understanding + external research
 └── prompts/             # Workflow presets (prompt templates)
-    ├── implement.md         # search -> oracle -> worker
-    ├── search-and-oracle.md # search -> oracle (no implementation)
-    └── implement-and-review.md  # worker -> review -> worker
+    ├── implement.md             # finder → oracle → implement directly
+    ├── search-and-oracle.md     # finder → oracle (plan only)
+    └── implement-and-review.md  # implement → review → apply feedback
 ```
 
 ## Installation
@@ -37,27 +36,24 @@ From the repository root, symlink the files:
 
 ```bash
 # Symlink the extension (must be in a subdirectory with index.ts)
-mkdir -p ~/.pi/agent/extensions/subagent
-ln -sf "$(pwd)/packages/coding-agent/examples/extensions/subagent/index.ts" ~/.pi/agent/extensions/subagent/index.ts
-ln -sf "$(pwd)/packages/coding-agent/examples/extensions/subagent/agents.ts" ~/.pi/agent/extensions/subagent/agents.ts
+mkdir -p ~/.pi/agent/extensions/subagents
+ln -sf "$(pwd)/agent/extensions/subagents/index.ts" ~/.pi/agent/extensions/subagents/index.ts
+ln -sf "$(pwd)/agent/extensions/subagents/agents.ts" ~/.pi/agent/extensions/subagents/agents.ts
 
 # Symlink agents
 mkdir -p ~/.pi/agent/agents
-for f in packages/coding-agent/examples/extensions/subagent/agents/*.md; do
+for f in agent/extensions/subagents/agents/*.md; do
   ln -sf "$(pwd)/$f" ~/.pi/agent/agents/$(basename "$f")
 done
 
 # Symlink workflow prompts
 mkdir -p ~/.pi/agent/prompts
-for f in packages/coding-agent/examples/extensions/subagent/prompts/*.md; do
+for f in agent/extensions/subagents/prompts/*.md; do
   ln -sf "$(pwd)/$f" ~/.pi/agent/prompts/$(basename "$f")
 done
 ```
 
 ## Security Model
-
-This tool executes a separate `pi` subprocess with a delegated system prompt and
-tool/model configuration.
 
 **Project-local agents** (`.pi/agents/*.md`) are repo-controlled prompts that
 can instruct the model to read files, run bash commands, etc.
@@ -76,19 +72,19 @@ project-local agents. Set `confirmProjectAgents: false` to disable.
 ### Single agent
 
 ```
-Use search to find all authentication code
+Use finder to locate all authentication code
 ```
 
 ### Parallel execution
 
 ```
-Run 2 searches in parallel: one to find models, one to find providers
+Run 2 finder tasks in parallel: one to find models, one to find providers
 ```
 
 ### Chained workflow
 
 ```
-Use a chain: first have search find the read tool, then have oracle suggest improvements
+Use a chain: first have finder locate the read tool, then have oracle suggest improvements
 ```
 
 ### Workflow prompts
@@ -129,13 +125,6 @@ Use a chain: first have search find the read tool, then have oracle suggest impr
 - Updates as each task makes progress
 - Shows "2/3 done, 1 running" status
 
-**Tool call formatting** (mimics built-in tools):
-
-- `$ command` for bash
-- `read ~/path:1-10` for read
-- `grep /pattern/ in ~/path` for grep
-- etc.
-
 ## Agent Definitions
 
 Agents are markdown files with YAML frontmatter:
@@ -160,23 +149,22 @@ System prompt for the agent goes here.
 Project agents override user agents with the same name when
 `agentScope: "both"`.
 
-## Sample Agents
+## Agents
 
-| Agent       | Purpose                   | Model      | Tools                      |
-| ----------- | ------------------------- | ---------- | -------------------------- |
-| `search`    | Fast local codebase recon | Sonnet 4.5 | read, grep, find, ls, bash |
-| `oracle`    | Deep analysis + planning  | GPT-5.2    | read, grep, find, ls       |
-| `review`    | Code review               | GPT-5.2    | read, grep, find, ls, bash |
-| `librarian` | External research         | Sonnet 4.5 | WebSearch, read            |
-| `worker`    | General-purpose           | Sonnet 4.5 | (all default)              |
+| Agent       | Purpose                            | Model             | Tools                                 |
+| ----------- | ---------------------------------- | ----------------- | ------------------------------------- |
+| `finder`    | Fast parallel codebase search      | Claude Haiku 4.5  | read, grep, find, ls, bash            |
+| `oracle`    | Deep analysis, planning, debugging | GPT-5.2           | read, grep, find, ls, bash, WebSearch |
+| `review`    | Code review for quality/security   | Claude Sonnet 4.5 | read, grep, find, ls, bash            |
+| `librarian` | Codebase understanding + research  | Claude Sonnet 4.5 | read, grep, find, ls, bash, WebSearch |
 
 ## Workflow Prompts
 
-| Prompt                          | Flow                     |
-| ------------------------------- | ------------------------ |
-| `/implement <query>`            | search → oracle → worker |
-| `/search-and-oracle <query>`    | search → oracle          |
-| `/implement-and-review <query>` | worker → review → worker |
+| Prompt                          | Flow                                 |
+| ------------------------------- | ------------------------------------ |
+| `/implement <query>`            | finder → oracle → implement directly |
+| `/search-and-oracle <query>`    | finder → oracle (plan only)          |
+| `/implement-and-review <query>` | implement → review → apply feedback  |
 
 ## Error Handling
 
