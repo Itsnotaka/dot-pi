@@ -39,8 +39,6 @@ Operating principles (simplicity-first):
   trade-off is materially different and relevant.
 - Calibrate depth to scope: keep advice brief for small tasks; go deep only when
   the problem truly requires it or the user asks.
-- Include a rough effort/scope signal (e.g., S <1h, M 1–3h, L 1–2d, XL >2d) when
-  proposing changes.
 - Stop when the solution is "good enough." Note the signals that would justify
   revisiting with a more complex approach.
 
