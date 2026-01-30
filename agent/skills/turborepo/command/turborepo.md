@@ -1,8 +1,12 @@
 ---
-description: Load Turborepo skill for creating workflows, tasks, and pipelines in monorepos. Use when users ask to "create a workflow", "make a task", "generate a pipeline", or set up build orchestration.
+description:
+  Load Turborepo skill for creating workflows, tasks, and pipelines in
+  monorepos. Use when users ask to "create a workflow", "make a task", "generate
+  a pipeline", or set up build orchestration.
 ---
 
-Load the Turborepo skill and help with monorepo task orchestration: creating workflows, configuring tasks, setting up pipelines, and optimizing builds.
+Load the Turborepo skill and help with monorepo task orchestration: creating
+workflows, configuring tasks, setting up pipelines, and optimizing builds.
 
 ## Workflow
 
@@ -37,14 +41,17 @@ Based on task type, read from `references/<topic>/`:
 
 ### Step 4: Execute task
 
-Apply Turborepo-specific patterns from references to complete the user's request.
+Apply Turborepo-specific patterns from references to complete the user's
+request.
 
 **CRITICAL - When creating tasks/scripts/pipelines:**
 
 1. **DO NOT create Root Tasks** - Always create package tasks
-2. Add scripts to each relevant package's `package.json` (e.g., `apps/web/package.json`, `packages/ui/package.json`)
+2. Add scripts to each relevant package's `package.json` (e.g.,
+   `apps/web/package.json`, `packages/ui/package.json`)
 3. Register the task in root `turbo.json`
-4. Root `package.json` only contains `turbo run <task>` - never actual task logic
+4. Root `package.json` only contains `turbo run <task>` - never actual task
+   logic
 
 **Other things to verify:**
 

@@ -1,24 +1,23 @@
 {
-	"name": "dot-pi",
-	"version": "1.0.0",
-	"private": true,
-	"type": "module",
-	"scripts": {
-		"fmt": "oxfmt -c .oxfmtrc.json",
-		"lint": "oxlint -c .oxlintrc.json",
-		"check": "tsgo --noEmit",
-		"fix": "pnpm fmt && pnpm lint --fix"
-	},
-	"devDependencies": {
-		"@mariozechner/pi-agent-core": "latest",
-		"@mariozechner/pi-ai": "latest",
-		"@mariozechner/pi-coding-agent": "latest",
-		"@mariozechner/pi-tui": "latest",
-		"@sinclair/typebox": "latest",
-		"@types/node": "latest",
-		"@typescript/native-preview": "latest",
-		"oxfmt": "latest",
-		"oxlint": "latest",
-		"oxlint-tsgolint": "latest"
-	}
+  "name": "dot-pi",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "oxlint -c .config/.oxlintrc.json --type-aware --type-check --deny-warnings --report-unused-disable-directives",
+    "fmt": "oxfmt -c .config/.oxfmtrc.json",
+    "typecheck": "tsgo --noEmit"
+  },
+  "devDependencies": {
+    "@mariozechner/pi-agent-core": "latest",
+    "@mariozechner/pi-ai": "latest",
+    "@mariozechner/pi-coding-agent": "latest",
+    "@mariozechner/pi-tui": "latest",
+    "@sinclair/typebox": "latest",
+    "@types/node": "latest",
+    "@typescript/native-preview": "latest",
+    "oxfmt": "latest",
+    "oxlint": "latest",
+    "oxlint-tsgolint": "latest"
+  }
 }

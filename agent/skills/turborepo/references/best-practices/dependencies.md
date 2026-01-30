@@ -24,10 +24,10 @@ Each package's `package.json` lists exactly what it needs:
 ```json
 // packages/ui/package.json
 {
-	"dependencies": {
-		"react": "^18.0.0",
-		"class-variance-authority": "^0.7.0"
-	}
+  "dependencies": {
+    "react": "^18.0.0",
+    "class-variance-authority": "^0.7.0"
+  }
 }
 ```
 
@@ -58,11 +58,11 @@ Only repository-level tools:
 ```json
 // Root package.json
 {
-	"devDependencies": {
-		"turbo": "latest",
-		"husky": "^8.0.0",
-		"lint-staged": "^15.0.0"
-	}
+  "devDependencies": {
+    "turbo": "latest",
+    "husky": "^8.0.0",
+    "lint-staged": "^15.0.0"
+  }
 }
 ```
 
@@ -160,9 +160,9 @@ catalog:
 ```json
 // Any package.json
 {
-	"dependencies": {
-		"react": "catalog:" // Uses version from catalog
-	}
+  "dependencies": {
+    "react": "catalog:" // Uses version from catalog
+  }
 }
 ```
 
@@ -195,14 +195,14 @@ For library packages that expect the consumer to provide dependencies:
 ```json
 // packages/ui/package.json
 {
-	"peerDependencies": {
-		"react": "^18.0.0",
-		"react-dom": "^18.0.0"
-	},
-	"devDependencies": {
-		"react": "^18.0.0", // For development/testing
-		"react-dom": "^18.0.0"
-	}
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "react": "^18.0.0", // For development/testing
+    "react-dom": "^18.0.0"
+  }
 }
 ```
 
@@ -216,7 +216,8 @@ For library packages that expect the consumer to provide dependencies:
 
 ### Version Conflicts
 
-Packages can use different versions - this is a feature, not a bug. But if you need consistency:
+Packages can use different versions - this is a feature, not a bug. But if you
+need consistency:
 
 1. Use tooling (syncpack, manypkg)
 2. Use pnpm catalogs
@@ -224,12 +225,12 @@ Packages can use different versions - this is a feature, not a bug. But if you n
 
 ### Hoisting Issues
 
-Some tools expect dependencies in specific locations. Use package manager config:
+Some tools expect dependencies in specific locations. Use package manager
+config:
 
 ```yaml
 # .npmrc (pnpm)
-public-hoist-pattern[]=*eslint*
-public-hoist-pattern[]=*prettier*
+public-hoist-pattern[]=*eslint* public-hoist-pattern[]=*prettier*
 ```
 
 ## Lockfile

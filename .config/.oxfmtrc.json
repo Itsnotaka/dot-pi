@@ -1,0 +1,37 @@
+{
+  "$schema": "../node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 80,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "proseWrap": "always",
+  "singleQuote": false,
+  "quoteProps": "as-needed",
+  "jsxSingleQuote": false,
+  "trailingComma": "es5",
+  "bracketSpacing": true,
+  "bracketSameLine": false,
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  "experimentalSortPackageJson": true,
+  "experimentalSortImports": {
+    "ignoreCase": true,
+    "newlinesBetween": true,
+    "order": "asc"
+  },
+  "experimentalTailwindcss": {
+    "stylesheet": "./tooling/tailwind/theme.css",
+    "attributes": ["class", "className"],
+    "functions": ["clsx", "cn"],
+    "preserveDuplicates": false,
+    "preserveWhitespace": false
+  },
+  "ignorePatterns": [
+    "stylelint.config.mjs",
+    "**/routeTree.gen.ts",
+    "node_modules/**",
+    ".vercel/**",
+    ".next/**",
+    "out/**"
+  ]
+}

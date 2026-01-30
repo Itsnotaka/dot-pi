@@ -1,11 +1,17 @@
 ---
 name: pi-development
-description: Complete reference for developing pi extensions, tools, themes, skills, and prompt templates. Use when creating or modifying pi extensions, custom tools, TUI components, themes, model providers, or debugging pi internals.
+description:
+  Complete reference for developing pi extensions, tools, themes, skills, and
+  prompt templates. Use when creating or modifying pi extensions, custom tools,
+  TUI components, themes, model providers, or debugging pi internals.
 ---
 
 # Pi Development
 
-Pi is a terminal-based coding agent by Mario Zechner (`@mariozechner/pi-coding-agent`). It wraps LLMs with tools (read, bash, edit, write, grep, find, ls), a TUI, extensions, skills, and prompt templates. All Pi node modules are read-only.
+Pi is a terminal-based coding agent by Mario Zechner
+(`@mariozechner/pi-coding-agent`). It wraps LLMs with tools (read, bash, edit,
+write, grep, find, ls), a TUI, extensions, skills, and prompt templates. All Pi
+node modules are read-only.
 
 ## Quick Reference
 
@@ -57,37 +63,37 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 
 export default function (pi: ExtensionAPI) {
-	pi.on("session_start", async (_event, ctx) => {
-		// ctx.ui, ctx.cwd, ctx.sessionManager, ctx.hasUI
-	});
+  pi.on("session_start", async (_event, ctx) => {
+    // ctx.ui, ctx.cwd, ctx.sessionManager, ctx.hasUI
+  });
 
-	pi.registerTool({
-		name: "my_tool",
-		label: "My Tool",
-		description: "What the LLM sees",
-		parameters: Type.Object({
-			arg: Type.String({ description: "Argument" }),
-		}),
-		async execute(toolCallId, params, onUpdate, ctx, signal) {
-			return {
-				content: [{ type: "text", text: "result for LLM" }],
-				details: { data: "for rendering and state" },
-			};
-		},
-		renderCall(args, theme) {
-			/* returns Component */
-		},
-		renderResult(result, { expanded, isPartial }, theme) {
-			/* returns Component */
-		},
-	});
+  pi.registerTool({
+    name: "my_tool",
+    label: "My Tool",
+    description: "What the LLM sees",
+    parameters: Type.Object({
+      arg: Type.String({ description: "Argument" }),
+    }),
+    async execute(toolCallId, params, onUpdate, ctx, signal) {
+      return {
+        content: [{ type: "text", text: "result for LLM" }],
+        details: { data: "for rendering and state" },
+      };
+    },
+    renderCall(args, theme) {
+      /* returns Component */
+    },
+    renderResult(result, { expanded, isPartial }, theme) {
+      /* returns Component */
+    },
+  });
 
-	pi.registerCommand("mycmd", {
-		description: "Description",
-		handler: async (args, ctx) => {
-			/* ExtensionCommandContext */
-		},
-	});
+  pi.registerCommand("mycmd", {
+    description: "Description",
+    handler: async (args, ctx) => {
+      /* ExtensionCommandContext */
+    },
+  });
 }
 ```
 

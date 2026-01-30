@@ -16,108 +16,176 @@
  * Toggle with: /statusline
  */
 
-import type { AssistantMessage } from "@mariozechner/pi-ai";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type {
+  ExtensionAPI,
+  ExtensionContext,
+} from "@mariozechner/pi-coding-agent";
+
 import { truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
 
 export default function (pi: ExtensionAPI) {
-	let currentTool: string | null = null;
-	let isProcessing = false;
-	let enabled = true;
+  let enabled = true;
 
-	pi.registerCommand("statusline", {
-		description: "Toggle clean statusline",
-		handler: async (_args, ctx) => {
-			enabled = !enabled;
+  const filesChanged = new Set<string>();
+  let diffStats = { added: 0, changed: 0, deleted: 0 };
 
-			if (enabled) {
-				setupFooter(ctx);
-				ctx.ui.notify("Clean statusline enabled", "info");
-			} else {
-				ctx.ui.setFooter(undefined);
-				ctx.ui.notify("Default footer restored", "info");
-			}
-		},
-	});
+  pi.registerCommand("statusline", {
+    description: "Toggle clean statusline",
+    handler: async (_args, ctx) => {
+      enabled = !enabled;
 
-	pi.on("session_start", async (_event, ctx) => {
-		if (enabled) setupFooter(ctx);
-	});
+      if (enabled) {
+        setupFooter(ctx);
+        ctx.ui.notify("Clean statusline enabled", "info");
+      } else {
+        ctx.ui.setFooter(undefined);
+        ctx.ui.notify("Default footer restored", "info");
+      }
+    },
+  });
 
-	pi.on("turn_start", async (_event, ctx) => {
-		isProcessing = true;
-		currentTool = null;
-		ctx.tui?.requestRender();
-	});
+  pi.on("session_start", async (_event, ctx) => {
+    filesChanged.clear();
+    diffStats = { added: 0, changed: 0, deleted: 0 };
+    if (enabled) setupFooter(ctx);
+  });
 
-	pi.on("tool_call", async (event, ctx) => {
-		currentTool = event.toolName;
-		ctx.tui?.requestRender();
-	});
+  pi.on("tool_call", async (event, _ctx) => {
+    trackFileChanges(event);
+  });
 
-	pi.on("turn_end", async (_event, ctx) => {
-		isProcessing = false;
-		currentTool = null;
-		ctx.tui?.requestRender();
-	});
+  function trackFileChanges(event: ToolCallEvent) {
+    const { toolName, input } = event;
 
-	pi.on("model_select", async (_event, ctx) => {
-		ctx.tui?.requestRender();
-	});
+    if (toolName === "edit_file" && typeof input.path === "string") {
+      filesChanged.add(input.path);
 
-	function setupFooter(ctx: any) {
-		if (!ctx.hasUI) return;
+      if (
+        typeof input.old_str === "string" &&
+        typeof input.new_str === "string"
+      ) {
+        const oldLines = input.old_str.split("\n").length;
+        const newLines = input.new_str.split("\n").length;
+        const diff = newLines - oldLines;
 
-		ctx.ui.setFooter((tui, theme, footerData) => {
-			const unsub = footerData.onBranchChange(() => tui.requestRender());
+        if (diff > 0) diffStats.added += diff;
+        else if (diff < 0) diffStats.deleted += Math.abs(diff);
+        else diffStats.changed++;
+      }
+    } else if (
+      (toolName === "create_file" || toolName === "write_file") &&
+      typeof input.path === "string"
+    ) {
+      filesChanged.add(input.path);
 
-			return {
-				dispose: unsub,
-				invalidate() {},
-				render(width: number): string[] {
-					const leftParts: string[] = [];
-					const rightParts: string[] = [];
+      if (typeof input.content === "string") {
+        const lines = input.content.split("\n").length;
+        diffStats.added += lines;
+      }
+    }
+  }
 
-					if (isProcessing && currentTool) {
-						leftParts.push(theme.fg("accent", "⚙") + theme.fg("dim", ` ${currentTool}`));
-					} else if (isProcessing) {
-						leftParts.push(theme.fg("accent", "●") + theme.fg("dim", " thinking"));
-					} else {
-						leftParts.push(theme.fg("dim", "○"));
-					}
+  function setupFooter(ctx: ExtensionContext) {
+    if (!ctx.hasUI) return;
 
-					const usage = ctx.getContextUsage();
-					if (usage) {
-						const percent = usage.percent;
-						let color = "success";
-						if (percent > 90) color = "error";
-						else if (percent > 75) color = "warning";
+    ctx.ui.setFooter((tui, theme, footerData) => {
+      const unsub = footerData.onBranchChange(() => tui.requestRender());
 
-						const formatTokens = (n: number) => (n < 1000 ? `${n}` : `${(n / 1000).toFixed(0)}k`);
-						const contextStr = theme.fg(color, `${percent.toFixed(0)}%`) + theme.fg("dim", ` of ${formatTokens(usage.contextWindow)}`);
-						leftParts.push(contextStr);
-					}
+      return {
+        dispose: unsub,
+        invalidate() {},
+        render(width: number): string[] {
+          const leftParts: string[] = [];
+          const rightParts: string[] = [];
 
-					const model = ctx.model?.id || "no-model";
-					rightParts.push(theme.fg("dim", model));
+          const usage = ctx.getContextUsage();
+          if (usage) {
+            const percent = usage.percent;
+            let color: "success" | "error" | "warning" = "success";
+            if (percent > 90) color = "error";
+            else if (percent > 75) color = "warning";
 
-					const home = process.env.HOME || "";
-					const cwd = process.cwd();
-					const displayPath = home && cwd.startsWith(home) ? `~${cwd.slice(home.length)}` : cwd;
+            const formatTokens = (n: number) =>
+              n < 1000 ? `${n}` : `${(n / 1000).toFixed(0)}k`;
+            const contextStr =
+              theme.fg(color, `${percent.toFixed(0)}%`) +
+              theme.fg("dim", ` of ${formatTokens(usage.contextWindow)}`);
+            leftParts.push(contextStr);
+          }
 
-					const branch = footerData.getGitBranch();
-					const pathWithBranch = branch && branch !== "detached" 
-						? `${displayPath} ${theme.fg("muted", `(${branch})`)}` 
-						: displayPath;
-					rightParts.push(theme.fg("dim", pathWithBranch));
+          const model = ctx.model?.id || "no-model";
+          const thinkingLevel = pi.getThinkingLevel();
 
-					const left = leftParts.join(theme.fg("dim", " · "));
-					const right = rightParts.join(theme.fg("dim", " · "));
-					const gap = " ".repeat(Math.max(1, width - visibleWidth(left) - visibleWidth(right) - 2));
+          if (thinkingLevel && thinkingLevel !== "off") {
+            const thinkingColorMap: Record<
+              string,
+              | "thinkingMinimal"
+              | "thinkingLow"
+              | "thinkingMedium"
+              | "thinkingHigh"
+              | "thinkingXhigh"
+            > = {
+              minimal: "thinkingMinimal",
+              low: "thinkingLow",
+              medium: "thinkingMedium",
+              high: "thinkingHigh",
+              xhigh: "thinkingXhigh",
+            };
+            const thinkingColor =
+              thinkingColorMap[thinkingLevel] || "thinkingText";
+            rightParts.push(
+              theme.fg(thinkingColor, `${model} (${thinkingLevel})`)
+            );
+          } else {
+            rightParts.push(theme.fg("toolTitle", model));
+          }
 
-					return [truncateToWidth(` ${left}${gap}${right} `, width)];
-				},
-			};
-		});
-	}
+          const home = process.env.HOME || "";
+          const cwd = process.cwd();
+          const displayPath =
+            home && cwd.startsWith(home) ? `~${cwd.slice(home.length)}` : cwd;
+
+          const branch = footerData.getGitBranch();
+          const pathWithBranch =
+            branch && branch !== "detached"
+              ? `${displayPath} ${theme.fg("muted", `(${branch})`)}`
+              : displayPath;
+          rightParts.push(theme.fg("dim", pathWithBranch));
+
+          const left = leftParts.join(theme.fg("dim", " · "));
+          const right = rightParts.join(theme.fg("dim", " · "));
+          const gap = " ".repeat(
+            Math.max(1, width - visibleWidth(left) - visibleWidth(right) - 2)
+          );
+
+          const lines = [truncateToWidth(` ${left}${gap}${right} `, width)];
+
+          if (filesChanged.size > 0) {
+            const fileCount = theme.fg(
+              "dim",
+              `${filesChanged.size} file${filesChanged.size === 1 ? "" : "s"}`
+            );
+            const stats = [
+              diffStats.added > 0
+                ? theme.fg("success", `+${diffStats.added}`)
+                : null,
+              diffStats.changed > 0
+                ? theme.fg("warning", `~${diffStats.changed}`)
+                : null,
+              diffStats.deleted > 0
+                ? theme.fg("error", `-${diffStats.deleted}`)
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" ");
+
+            const secondLine = ` ${fileCount}${stats ? " " + stats : ""}`;
+            lines.push(truncateToWidth(secondLine, width));
+          }
+
+          return lines;
+        },
+      };
+    });
+  }
 }

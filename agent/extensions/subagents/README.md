@@ -7,7 +7,8 @@ Delegate tasks to specialized subagents with isolated context windows.
 - **Isolated context**: Each subagent runs in a separate `pi` process
 - **Streaming output**: See tool calls and progress as they happen
 - **Parallel streaming**: All parallel tasks stream updates simultaneously
-- **Markdown rendering**: Final output rendered with proper formatting (expanded view)
+- **Markdown rendering**: Final output rendered with proper formatting (expanded
+  view)
 - **Usage tracking**: Shows turns, tokens, cost, and context usage per agent
 - **Abort support**: Ctrl+C propagates to kill subagent processes
 
@@ -55,15 +56,20 @@ done
 
 ## Security Model
 
-This tool executes a separate `pi` subprocess with a delegated system prompt and tool/model configuration.
+This tool executes a separate `pi` subprocess with a delegated system prompt and
+tool/model configuration.
 
-**Project-local agents** (`.pi/agents/*.md`) are repo-controlled prompts that can instruct the model to read files, run bash commands, etc.
+**Project-local agents** (`.pi/agents/*.md`) are repo-controlled prompts that
+can instruct the model to read files, run bash commands, etc.
 
-**Default behavior:** Only loads **user-level agents** from `~/.pi/agent/agents`.
+**Default behavior:** Only loads **user-level agents** from
+`~/.pi/agent/agents`.
 
-To enable project-local agents, pass `agentScope: "both"` (or `"project"`). Only do this for repositories you trust.
+To enable project-local agents, pass `agentScope: "both"` (or `"project"`). Only
+do this for repositories you trust.
 
-When running interactively, the tool prompts for confirmation before running project-local agents. Set `confirmProjectAgents: false` to disable.
+When running interactively, the tool prompts for confirmation before running
+project-local agents. Set `confirmProjectAgents: false` to disable.
 
 ## Usage
 
@@ -107,7 +113,8 @@ Use a chain: first have search find the read tool, then have oracle suggest impr
 
 - Status icon (✓/✗/⏳) and agent name
 - Last 5-10 items (tool calls and text)
-- Usage stats: `3 turns ↑input ↓output RcacheRead WcacheWrite $cost ctx:contextTokens model`
+- Usage stats:
+  `3 turns ↑input ↓output RcacheRead WcacheWrite $cost ctx:contextTokens model`
 
 **Expanded view** (Ctrl+O):
 
@@ -147,9 +154,11 @@ System prompt for the agent goes here.
 **Locations:**
 
 - `~/.pi/agent/agents/*.md` - User-level (always loaded)
-- `.pi/agents/*.md` - Project-level (only with `agentScope: "project"` or `"both"`)
+- `.pi/agents/*.md` - Project-level (only with `agentScope: "project"` or
+  `"both"`)
 
-Project agents override user agents with the same name when `agentScope: "both"`.
+Project agents override user agents with the same name when
+`agentScope: "both"`.
 
 ## Sample Agents
 

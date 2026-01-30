@@ -22,7 +22,8 @@ Tasks re-run in order configured in `turbo.json` when source files change.
 
 ## With Persistent Tasks
 
-Persistent tasks (`"persistent": true`) won't exit, so they can't be depended on. They work the same in `turbo watch` as `turbo run`.
+Persistent tasks (`"persistent": true`) won't exit, so they can't be depended
+on. They work the same in `turbo watch` as `turbo run`.
 
 ### Dependency-Aware Persistent Tasks
 
@@ -30,12 +31,12 @@ If your tool has built-in watching (like `next dev`), use its watcher:
 
 ```json
 {
-	"tasks": {
-		"dev": {
-			"persistent": true,
-			"cache": false
-		}
-	}
+  "tasks": {
+    "dev": {
+      "persistent": true,
+      "cache": false
+    }
+  }
 }
 ```
 
@@ -45,13 +46,13 @@ For tools that don't detect dependency changes, use `interruptible`:
 
 ```json
 {
-	"tasks": {
-		"dev": {
-			"persistent": true,
-			"interruptible": true,
-			"cache": false
-		}
-	}
+  "tasks": {
+    "dev": {
+      "persistent": true,
+      "interruptible": true,
+      "cache": false
+    }
+  }
 }
 ```
 
@@ -69,7 +70,8 @@ turbo watch your-tasks --experimental-write-cache
 
 ### Task Outputs in Source Control
 
-If tasks write files tracked by git, watch mode may loop infinitely. Watch mode uses file hashes to prevent this but it's not foolproof.
+If tasks write files tracked by git, watch mode may loop infinitely. Watch mode
+uses file hashes to prevent this but it's not foolproof.
 
 **Recommendation**: Remove task outputs from git.
 

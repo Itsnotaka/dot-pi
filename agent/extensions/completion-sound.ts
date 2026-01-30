@@ -1,60 +1,79 @@
 /**
- * Completion sound extension - plays a subtle audio notification when agent finishes
+ * Completion sound extension - plays context-aware audio notifications
  *
- * Inspired by Amp's finishing sound. Plays a system sound when the agent
- * completes its turn to provide subtle, non-intrusive feedback.
+ * Matches Amp's sound behavior with three scenarios:
+ * 1. idle - Agent completes work (Submarine.aiff)
+ * 2. idle-review - Code review finished (Glass.aiff)
+ * 3. requires-user-input - Tool needs approval (Ping.aiff)
  *
- * Uses macOS system sounds by default (cross-platform support via afplay/paplay/powershell).
+ * Only plays when configured and follows Amp's notification patterns.
  * Toggle with: /sound
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { spawn } from "node:child_process";
+
+import { exec } from "node:child_process";
 
 export default function (pi: ExtensionAPI) {
-	let enabled = true;
-	let soundFile = "/System/Library/Sounds/Tink.aiff";
+  let enabled = true;
+  let wasProcessing = false;
 
-	pi.registerCommand("sound", {
-		description: "Toggle completion sound notifications",
-		handler: async (args, ctx) => {
-			if (args.trim()) {
-				soundFile = args.trim();
-				ctx.ui.notify(`Sound file set to: ${soundFile}`, "info");
-				return;
-			}
+  pi.registerCommand("sound", {
+    description: "Toggle completion sound notifications",
+    handler: async (_args, ctx) => {
+      enabled = !enabled;
+      ctx.ui.notify(
+        enabled ? "Completion sounds enabled" : "Completion sounds disabled",
+        "info"
+      );
 
-			enabled = !enabled;
-			ctx.ui.notify(enabled ? "Completion sound enabled" : "Completion sound disabled", "info");
+      if (enabled) {
+        playSound("idle");
+      }
+    },
+  });
 
-			if (enabled) {
-				playSound(soundFile);
-			}
-		},
-	});
+  pi.on("agent_start", async (_event, _ctx) => {
+    wasProcessing = true;
+  });
 
-	pi.on("turn_end", async (_event, ctx) => {
-		if (enabled && ctx.hasUI) {
-			playSound(soundFile);
-		}
-	});
+  pi.on("agent_end", async (_event, ctx) => {
+    if (!enabled || !ctx.hasUI) return;
 
-	function playSound(file: string) {
-		const platform = process.platform;
+    if (wasProcessing) {
+      playSound("idle");
+      wasProcessing = false;
+    }
+  });
 
-		try {
-			if (platform === "darwin") {
-				spawn("afplay", [file], { detached: true, stdio: "ignore" }).unref();
-			} else if (platform === "linux") {
-				spawn("paplay", [file], { detached: true, stdio: "ignore" }).unref();
-			} else if (platform === "win32") {
-				spawn("powershell", ["-c", `(New-Object Media.SoundPlayer '${file}').PlaySync()`], {
-					detached: true,
-					stdio: "ignore",
-				}).unref();
-			}
-		} catch (err) {
-			console.error("Failed to play completion sound:", err);
-		}
-	}
+  function playSound(scenario: "idle" | "idle-review" | "requires-user-input") {
+    try {
+      if (process.platform === "darwin") {
+        const sounds = {
+          idle: "/System/Library/Sounds/Submarine.aiff",
+          "idle-review": "/System/Library/Sounds/Glass.aiff",
+          "requires-user-input": "/System/Library/Sounds/Ping.aiff",
+        };
+        exec(`afplay ${sounds[scenario]}`);
+      } else if (process.platform === "win32") {
+        const beeps = {
+          idle: "[console]::beep(800,200)",
+          "idle-review": "[console]::beep(900,200)",
+          "requires-user-input": "[console]::beep(1000,300)",
+        };
+        exec(`powershell ${beeps[scenario]}`);
+      } else if (process.platform === "linux") {
+        const sounds = {
+          idle: "paplay /usr/share/sounds/freedesktop/stereo/message.oga || beep",
+          "idle-review":
+            "paplay /usr/share/sounds/freedesktop/stereo/complete.oga || beep",
+          "requires-user-input":
+            "paplay /usr/share/sounds/freedesktop/stereo/dialog-information.oga || beep -f 1000 -l 100",
+        };
+        exec(sounds[scenario]);
+      }
+    } catch (err) {
+      console.error(`Failed to play ${scenario} sound:`, err);
+    }
+  }
 }

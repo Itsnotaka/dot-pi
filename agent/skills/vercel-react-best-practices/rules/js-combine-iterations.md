@@ -7,7 +7,8 @@ tags: javascript, arrays, loops, performance
 
 ## Combine Multiple Array Iterations
 
-Multiple `.filter()` or `.map()` calls iterate the array multiple times. Combine into one loop.
+Multiple `.filter()` or `.map()` calls iterate the array multiple times. Combine
+into one loop.
 
 **Incorrect (3 iterations):**
 
@@ -25,8 +26,8 @@ const testers: User[] = [];
 const inactive: User[] = [];
 
 for (const user of users) {
-	if (user.isAdmin) admins.push(user);
-	if (user.isTester) testers.push(user);
-	if (!user.isActive) inactive.push(user);
+  if (user.isAdmin) admins.push(user);
+  if (user.isTester) testers.push(user);
+  if (!user.isActive) inactive.push(user);
 }
 ```

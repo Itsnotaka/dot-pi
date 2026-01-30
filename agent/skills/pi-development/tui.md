@@ -1,6 +1,7 @@
 # TUI Components
 
-All from `@mariozechner/pi-tui`. Used in `renderCall`, `renderResult`, `setWidget` callbacks, and `ctx.ui.custom()`.
+All from `@mariozechner/pi-tui`. Used in `renderCall`, `renderResult`,
+`setWidget` callbacks, and `ctx.ui.custom()`.
 
 ## Component Base
 
@@ -8,13 +9,14 @@ Every component extends `Component`:
 
 ```typescript
 class Component {
-	render(width: number): string[]; // Returns array of lines
-	invalidate(): void; // Marks dirty for re-render
-	get height(): number; // Computed from last render
+  render(width: number): string[]; // Returns array of lines
+  invalidate(): void; // Marks dirty for re-render
+  get height(): number; // Computed from last render
 }
 ```
 
-Rendering is line-based. `render(width)` returns `string[]` where each string is one terminal line with ANSI codes.
+Rendering is line-based. `render(width)` returns `string[]` where each string is
+one terminal line with ANSI codes.
 
 ## Core Components
 
@@ -25,7 +27,8 @@ import { Text } from "@mariozechner/pi-tui";
 new Text(content: string, paddingTop: number, paddingBottom: number);
 ```
 
-Multi-line via `\n` in content. Supports ANSI (use `theme.fg()`, `theme.bold()`).
+Multi-line via `\n` in content. Supports ANSI (use `theme.fg()`,
+`theme.bold()`).
 
 ### Container
 
@@ -100,7 +103,10 @@ theme.strikethrough(text);
 Syntax highlighting:
 
 ```typescript
-import { highlightCode, getLanguageFromPath } from "@mariozechner/pi-coding-agent";
+import {
+  highlightCode,
+  getLanguageFromPath,
+} from "@mariozechner/pi-coding-agent";
 const lang = getLanguageFromPath("file.rs"); // "rust"
 highlightCode(code, lang, theme);
 ```
@@ -140,25 +146,27 @@ ctx.ui.setEditorText("prefill");
 
 ```typescript
 const result = await ctx.ui.custom<T>((tui, theme, keybindings, done) => {
-	const comp = new Text("Press Enter", 1, 1);
-	comp.onKey = (key) => {
-		if (key === "return") done(value);
-		if (key === "escape") done(null);
-		return true;
-	};
-	return comp;
+  const comp = new Text("Press Enter", 1, 1);
+  comp.onKey = (key) => {
+    if (key === "return") done(value);
+    if (key === "escape") done(null);
+    return true;
+  };
+  return comp;
 });
 // Overlay mode: ctx.ui.custom(fn, { overlay: true })
 ```
 
 ## Startup Screen Pattern
 
-Pi's startup uses `theme.fg("mdHeading", "[Section]")` for headers, `theme.fg("accent", scope)` at 2-space indent, `theme.fg("dim", item)` at 4-space indent.
+Pi's startup uses `theme.fg("mdHeading", "[Section]")` for headers,
+`theme.fg("accent", scope)` at 2-space indent, `theme.fg("dim", item)` at
+4-space indent.
 
 ```typescript
 ctx.ui.setWidget("id", (_tui, theme) => {
-	const header = theme.fg("mdHeading", "[MySection]");
-	const items = data.map((d) => `    ${theme.fg("dim", d.label)}`);
-	return new Text(`${header}\n${items.join("\n")}`, 0, 0);
+  const header = theme.fg("mdHeading", "[MySection]");
+  const items = data.map((d) => `    ${theme.fg("dim", d.label)}`);
+  return new Text(`${header}\n${items.join("\n")}`, 0, 0);
 });
 ```

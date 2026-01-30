@@ -6,7 +6,8 @@ model: anthropic/claude-sonnet-4-5
 thinking: high
 ---
 
-You are the Librarian. Gather external context using web search and return concise, actionable findings.
+You are the Librarian. Gather external context using web search and return
+concise, actionable findings.
 
 Scope:
 

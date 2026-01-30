@@ -1,6 +1,7 @@
 # turbo.json Configuration Overview
 
-Configuration reference for Turborepo. Full docs: https://turborepo.dev/docs/reference/configuration
+Configuration reference for Turborepo. Full docs:
+https://turborepo.dev/docs/reference/configuration
 
 ## File Location
 
@@ -18,9 +19,11 @@ my-monorepo/
 
 ## Always Prefer Package Tasks Over Root Tasks
 
-**Always use package tasks. Only use Root Tasks if you cannot succeed with package tasks.**
+**Always use package tasks. Only use Root Tasks if you cannot succeed with
+package tasks.**
 
-Package tasks enable parallelization, individual caching, and filtering. Define scripts in each package's `package.json`:
+Package tasks enable parallelization, individual caching, and filtering. Define
+scripts in each package's `package.json`:
 
 ```json
 // packages/web/package.json
@@ -47,25 +50,28 @@ Package tasks enable parallelization, individual caching, and filtering. Define 
 ```json
 // Root package.json - delegates to turbo
 {
-	"scripts": {
-		"build": "turbo run build",
-		"lint": "turbo run lint",
-		"test": "turbo run test",
-		"typecheck": "turbo run typecheck"
-	}
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
+  }
 }
 ```
 
-When you run `turbo run lint`, Turborepo finds all packages with a `lint` script and runs them **in parallel**.
+When you run `turbo run lint`, Turborepo finds all packages with a `lint` script
+and runs them **in parallel**.
 
-**Root Tasks are a fallback**, not the default. Only use them for tasks that truly cannot run per-package (e.g., repo-level CI scripts, workspace-wide config generation).
+**Root Tasks are a fallback**, not the default. Only use them for tasks that
+truly cannot run per-package (e.g., repo-level CI scripts, workspace-wide config
+generation).
 
 ```json
 // AVOID: Task logic in root defeats parallelization
 {
-	"scripts": {
-		"lint": "eslint apps/web && eslint apps/api && eslint packages/ui"
-	}
+  "scripts": {
+    "lint": "eslint apps/web && eslint apps/api && eslint packages/ui"
+  }
 }
 ```
 
@@ -73,19 +79,19 @@ When you run `turbo run lint`, Turborepo finds all packages with a `lint` script
 
 ```json
 {
-	"$schema": "https://turborepo.dev/schema.v2.json",
-	"globalEnv": ["CI"],
-	"globalDependencies": ["tsconfig.json"],
-	"tasks": {
-		"build": {
-			"dependsOn": ["^build"],
-			"outputs": ["dist/**"]
-		},
-		"dev": {
-			"cache": false,
-			"persistent": true
-		}
-	}
+  "$schema": "https://turborepo.dev/schema.v2.json",
+  "globalEnv": ["CI"],
+  "globalDependencies": ["tsconfig.json"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
 }
 ```
 
@@ -110,12 +116,12 @@ Use `turbo.json` in individual packages to override root settings:
 ```json
 // packages/web/turbo.json
 {
-	"extends": ["//"],
-	"tasks": {
-		"build": {
-			"outputs": [".next/**", "!.next/cache/**"]
-		}
-	}
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "outputs": [".next/**", "!.next/cache/**"]
+    }
+  }
 }
 ```
 
@@ -135,39 +141,41 @@ You can extend from config packages instead of just root:
 ```json
 // packages/web/turbo.json
 {
-	"extends": ["//", "@repo/turbo-config"]
+  "extends": ["//", "@repo/turbo-config"]
 }
 ```
 
 ### Adding to Inherited Arrays with `$TURBO_EXTENDS$`
 
-By default, array fields in Package Configurations **replace** root values. Use `$TURBO_EXTENDS$` to **append** instead:
+By default, array fields in Package Configurations **replace** root values. Use
+`$TURBO_EXTENDS$` to **append** instead:
 
 ```json
 // Root turbo.json
 {
-	"tasks": {
-		"build": {
-			"outputs": ["dist/**"]
-		}
-	}
+  "tasks": {
+    "build": {
+      "outputs": ["dist/**"]
+    }
+  }
 }
 ```
 
 ```json
 // packages/web/turbo.json
 {
-	"extends": ["//"],
-	"tasks": {
-		"build": {
-			// Inherits "dist/**" from root, adds ".next/**"
-			"outputs": ["$TURBO_EXTENDS$", ".next/**", "!.next/cache/**"]
-		}
-	}
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      // Inherits "dist/**" from root, adds ".next/**"
+      "outputs": ["$TURBO_EXTENDS$", ".next/**", "!.next/cache/**"]
+    }
+  }
 }
 ```
 
-Without `$TURBO_EXTENDS$`, outputs would only be `[".next/**", "!.next/cache/**"]`.
+Without `$TURBO_EXTENDS$`, outputs would only be
+`[".next/**", "!.next/cache/**"]`.
 
 **Works with:**
 
@@ -185,12 +193,12 @@ Use `extends: false` to exclude a task from a package:
 ```json
 // packages/ui/turbo.json
 {
-	"extends": ["//"],
-	"tasks": {
-		"e2e": {
-			"extends": false // UI package doesn't have e2e tests
-		}
-	}
+  "extends": ["//"],
+  "tasks": {
+    "e2e": {
+      "extends": false // UI package doesn't have e2e tests
+    }
+  }
 }
 ```
 
@@ -201,11 +209,11 @@ Use `turbo.jsonc` extension to add comments with IDE support:
 ```jsonc
 // turbo.jsonc
 {
-	"tasks": {
-		"build": {
-			// Next.js outputs
-			"outputs": [".next/**", "!.next/cache/**"],
-		},
-	},
+  "tasks": {
+    "build": {
+      // Next.js outputs
+      "outputs": [".next/**", "!.next/cache/**"],
+    },
+  },
 }
 ```

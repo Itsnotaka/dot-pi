@@ -2,21 +2,28 @@
 
 ## Context
 
-**OpenCode approach**: Plugin with `tool.execute.after` / `file.edited` events. Post-turn hook runs formatter, feeds lint errors back to agent via `client.send()`.
+**OpenCode approach**: Plugin with `tool.execute.after` / `file.edited` events.
+Post-turn hook runs formatter, feeds lint errors back to agent via
+`client.send()`.
 
-**Pi approach**: Extension using `tool_result` + `agent_end` events. Same pattern, native pi APIs. No core changes needed.
+**Pi approach**: Extension using `tool_result` + `agent_end` events. Same
+pattern, native pi APIs. No core changes needed.
 
 ## Decisions
 
-- **Auto-fix**: yes — run formatter with `--write`/`--fix`, then lint. If lint errors remain, feed back to agent via `followUp`.
+- **Auto-fix**: yes — run formatter with `--write`/`--fix`, then lint. If lint
+  errors remain, feed back to agent via `followUp`.
 - **TUI**: show errors as `ctx.ui.notify()` message so user sees them.
-- **Scope**: oxfmt + oxlint (first-class), eslint, prettier, ruff (python). That's it.
+- **Scope**: oxfmt + oxlint (first-class), eslint, prettier, ruff (python).
+  That's it.
 
 ---
 
 ## Tool Detection
 
-Detect by config file presence in `ctx.cwd` (walk up not needed — just cwd). First match wins per category (formatter vs linter). JS/TS and Python are separate pipelines.
+Detect by config file presence in `ctx.cwd` (walk up not needed — just cwd).
+First match wins per category (formatter vs linter). JS/TS and Python are
+separate pipelines.
 
 ### JS/TS Pipeline
 
@@ -149,128 +156,188 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { existsSync } from "fs";
 import { resolve, extname } from "path";
 
-const JS_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts", ".vue", ".svelte", ".astro"]);
-const JS_FMT_ONLY = new Set([".json", ".jsonc", ".json5", ".css", ".scss", ".less", ".md", ".mdx"]);
+const JS_EXTS = new Set([
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".mts",
+  ".cts",
+  ".vue",
+  ".svelte",
+  ".astro",
+]);
+const JS_FMT_ONLY = new Set([
+  ".json",
+  ".jsonc",
+  ".json5",
+  ".css",
+  ".scss",
+  ".less",
+  ".md",
+  ".mdx",
+]);
 const PY_EXTS = new Set([".py", ".pyi"]);
 
 interface ToolChain {
-	formatter?: { cmd: string; args: string[] };
-	linter?: { cmd: string; args: string[] };
+  formatter?: { cmd: string; args: string[] };
+  linter?: { cmd: string; args: string[] };
 }
 
 async function detectJsToolchain(cwd: string, exec): Promise<ToolChain> {
-	const chain: ToolChain = {};
+  const chain: ToolChain = {};
 
-	// formatter: oxfmt > prettier
-	if (existsSync(resolve(cwd, ".oxfmtrc.json")) || existsSync(resolve(cwd, ".oxfmtrc.jsonc"))) {
-		chain.formatter = { cmd: "npx", args: ["oxfmt"] };
-	} else if (
-		hasAny(cwd, [".prettierrc", ".prettierrc.json", ".prettierrc.js", "prettier.config.js", "prettier.config.mjs"])
-	) {
-		chain.formatter = { cmd: "npx", args: ["prettier", "--write"] };
-	}
+  // formatter: oxfmt > prettier
+  if (
+    existsSync(resolve(cwd, ".oxfmtrc.json")) ||
+    existsSync(resolve(cwd, ".oxfmtrc.jsonc"))
+  ) {
+    chain.formatter = { cmd: "npx", args: ["oxfmt"] };
+  } else if (
+    hasAny(cwd, [
+      ".prettierrc",
+      ".prettierrc.json",
+      ".prettierrc.js",
+      "prettier.config.js",
+      "prettier.config.mjs",
+    ])
+  ) {
+    chain.formatter = { cmd: "npx", args: ["prettier", "--write"] };
+  }
 
-	// linter: oxlint > eslint
-	if (existsSync(resolve(cwd, ".oxlintrc.json"))) {
-		chain.linter = { cmd: "npx", args: ["oxlint", "--fix"] };
-	} else if (hasAny(cwd, ["eslint.config.js", "eslint.config.mjs", "eslint.config.cjs", "eslint.config.ts"])) {
-		chain.linter = { cmd: "npx", args: ["eslint", "--fix"] };
-	}
+  // linter: oxlint > eslint
+  if (existsSync(resolve(cwd, ".oxlintrc.json"))) {
+    chain.linter = { cmd: "npx", args: ["oxlint", "--fix"] };
+  } else if (
+    hasAny(cwd, [
+      "eslint.config.js",
+      "eslint.config.mjs",
+      "eslint.config.cjs",
+      "eslint.config.ts",
+    ])
+  ) {
+    chain.linter = { cmd: "npx", args: ["eslint", "--fix"] };
+  }
 
-	return chain;
+  return chain;
 }
 
 async function detectPyToolchain(cwd: string): Promise<ToolChain> {
-	if (hasAny(cwd, ["ruff.toml", ".ruff.toml", "pyproject.toml"])) {
-		return {
-			formatter: { cmd: "ruff", args: ["format"] },
-			linter: { cmd: "ruff", args: ["check", "--fix"] },
-		};
-	}
-	return {};
+  if (hasAny(cwd, ["ruff.toml", ".ruff.toml", "pyproject.toml"])) {
+    return {
+      formatter: { cmd: "ruff", args: ["format"] },
+      linter: { cmd: "ruff", args: ["check", "--fix"] },
+    };
+  }
+  return {};
 }
 
 export default function (pi: ExtensionAPI) {
-	const editedFiles = new Set<string>();
+  const editedFiles = new Set<string>();
 
-	pi.on("tool_result", async (event) => {
-		if (event.isError) return;
-		if (event.toolName === "edit" || event.toolName === "write") {
-			const path = (event.input as any)?.path as string;
-			if (path) editedFiles.add(path);
-		}
-	});
+  pi.on("tool_result", async (event) => {
+    if (event.isError) return;
+    if (event.toolName === "edit" || event.toolName === "write") {
+      const path = (event.input as any)?.path as string;
+      if (path) editedFiles.add(path);
+    }
+  });
 
-	pi.on("agent_end", async (_event, ctx) => {
-		if (editedFiles.size === 0) return;
+  pi.on("agent_end", async (_event, ctx) => {
+    if (editedFiles.size === 0) return;
 
-		const allFiles = [...editedFiles];
-		editedFiles.clear();
+    const allFiles = [...editedFiles];
+    editedFiles.clear();
 
-		// filter deleted
-		const files = allFiles.map((f) => resolve(ctx.cwd, f)).filter((f) => existsSync(f));
-		if (files.length === 0) return;
+    // filter deleted
+    const files = allFiles
+      .map((f) => resolve(ctx.cwd, f))
+      .filter((f) => existsSync(f));
+    if (files.length === 0) return;
 
-		// partition
-		const jsFiles = files.filter((f) => JS_EXTS.has(extname(f)) || JS_FMT_ONLY.has(extname(f)));
-		const jsLintFiles = files.filter((f) => JS_EXTS.has(extname(f))); // no lint for json/css/md
-		const pyFiles = files.filter((f) => PY_EXTS.has(extname(f)));
+    // partition
+    const jsFiles = files.filter(
+      (f) => JS_EXTS.has(extname(f)) || JS_FMT_ONLY.has(extname(f))
+    );
+    const jsLintFiles = files.filter((f) => JS_EXTS.has(extname(f))); // no lint for json/css/md
+    const pyFiles = files.filter((f) => PY_EXTS.has(extname(f)));
 
-		const errors: string[] = [];
+    const errors: string[] = [];
 
-		// JS/TS pipeline
-		if (jsFiles.length > 0 || jsLintFiles.length > 0) {
-			const chain = await detectJsToolchain(ctx.cwd, pi.exec);
+    // JS/TS pipeline
+    if (jsFiles.length > 0 || jsLintFiles.length > 0) {
+      const chain = await detectJsToolchain(ctx.cwd, pi.exec);
 
-			if (chain.formatter && jsFiles.length > 0) {
-				await pi.exec(chain.formatter.cmd, [...chain.formatter.args, ...jsFiles]);
-			}
+      if (chain.formatter && jsFiles.length > 0) {
+        await pi.exec(chain.formatter.cmd, [
+          ...chain.formatter.args,
+          ...jsFiles,
+        ]);
+      }
 
-			if (chain.linter && jsLintFiles.length > 0) {
-				const r = await pi.exec(chain.linter.cmd, [...chain.linter.args, ...jsLintFiles]);
-				if (r.exitCode !== 0) {
-					errors.push(`## JS/TS Lint Errors\n\`\`\`\n${(r.stdout + r.stderr).trim()}\n\`\`\``);
-				}
-			}
-		}
+      if (chain.linter && jsLintFiles.length > 0) {
+        const r = await pi.exec(chain.linter.cmd, [
+          ...chain.linter.args,
+          ...jsLintFiles,
+        ]);
+        if (r.exitCode !== 0) {
+          errors.push(
+            `## JS/TS Lint Errors\n\`\`\`\n${(r.stdout + r.stderr).trim()}\n\`\`\``
+          );
+        }
+      }
+    }
 
-		// Python pipeline
-		if (pyFiles.length > 0) {
-			const chain = await detectPyToolchain(ctx.cwd);
+    // Python pipeline
+    if (pyFiles.length > 0) {
+      const chain = await detectPyToolchain(ctx.cwd);
 
-			if (chain.formatter) {
-				await pi.exec(chain.formatter.cmd, [...chain.formatter.args, ...pyFiles]);
-			}
+      if (chain.formatter) {
+        await pi.exec(chain.formatter.cmd, [
+          ...chain.formatter.args,
+          ...pyFiles,
+        ]);
+      }
 
-			if (chain.linter) {
-				const r = await pi.exec(chain.linter.cmd, [...chain.linter.args, ...pyFiles]);
-				if (r.exitCode !== 0) {
-					errors.push(`## Python Lint Errors\n\`\`\`\n${(r.stdout + r.stderr).trim()}\n\`\`\``);
-				}
-			}
-		}
+      if (chain.linter) {
+        const r = await pi.exec(chain.linter.cmd, [
+          ...chain.linter.args,
+          ...pyFiles,
+        ]);
+        if (r.exitCode !== 0) {
+          errors.push(
+            `## Python Lint Errors\n\`\`\`\n${(r.stdout + r.stderr).trim()}\n\`\`\``
+          );
+        }
+      }
+    }
 
-		// Report
-		if (errors.length > 0) {
-			const errorMsg = errors.join("\n\n");
+    // Report
+    if (errors.length > 0) {
+      const errorMsg = errors.join("\n\n");
 
-			if (ctx.hasUI) {
-				ctx.ui.notify("Lint errors found after formatting — sending to agent", "warn");
-			}
+      if (ctx.hasUI) {
+        ctx.ui.notify(
+          "Lint errors found after formatting — sending to agent",
+          "warn"
+        );
+      }
 
-			pi.sendMessage(
-				{
-					role: "user",
-					content: `The formatter/linter found errors in files you edited. Fix them:\n\n${errorMsg}`,
-				},
-				{ deliverAs: "followUp" },
-			);
-		} else {
-			if (ctx.hasUI) {
-				ctx.ui.notify("Formatted & linted — all clean ✓", "info");
-			}
-		}
-	});
+      pi.sendMessage(
+        {
+          role: "user",
+          content: `The formatter/linter found errors in files you edited. Fix them:\n\n${errorMsg}`,
+        },
+        { deliverAs: "followUp" }
+      );
+    } else {
+      if (ctx.hasUI) {
+        ctx.ui.notify("Formatted & linted — all clean ✓", "info");
+      }
+    }
+  });
 }
 ```
 
@@ -279,15 +346,23 @@ export default function (pi: ExtensionAPI) {
 ## Edge Cases
 
 - **Deleted files**: `existsSync` check before running tools
-- **Formatter not installed**: `npx` will fail; `pi.exec` returns non-zero. Treat as no-op with notify.
-- **ruff not on PATH**: try `ruff` first, could fallback to `uvx ruff` (check `which ruff` first)
-- **Mixed project**: both pipelines run independently, each on their own file set
-- **Subagents**: separate pi processes, each has own extension instance — works automatically
-- **agent_end fires even on abort**: check if files were actually modified (Set tracks only successful tool_results, so already safe)
+- **Formatter not installed**: `npx` will fail; `pi.exec` returns non-zero.
+  Treat as no-op with notify.
+- **ruff not on PATH**: try `ruff` first, could fallback to `uvx ruff` (check
+  `which ruff` first)
+- **Mixed project**: both pipelines run independently, each on their own file
+  set
+- **Subagents**: separate pi processes, each has own extension instance — works
+  automatically
+- **agent_end fires even on abort**: check if files were actually modified (Set
+  tracks only successful tool_results, so already safe)
 - **npx cold start**: first run may be slow; acceptable since it's post-agent
 
 ## Remaining Questions
 
-1. Should we also check `package.json` devDeps for oxfmt/oxlint/prettier/eslint presence (not just config files)?
-2. For ruff: prefer `ruff` on PATH or `uvx ruff`? Could check `which ruff` first.
-3. Max retry depth — if followUp triggers another agent_end with more lint errors, could loop. Cap at 1 retry? Use a `retryCount` guard.
+1. Should we also check `package.json` devDeps for oxfmt/oxlint/prettier/eslint
+   presence (not just config files)?
+2. For ruff: prefer `ruff` on PATH or `uvx ruff`? Could check `which ruff`
+   first.
+3. Max retry depth — if followUp triggers another agent_end with more lint
+   errors, could loop. Cap at 1 retry? Use a `retryCount` guard.

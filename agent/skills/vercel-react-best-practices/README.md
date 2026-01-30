@@ -1,6 +1,7 @@
 # React Best Practices
 
-A structured repository for creating and maintaining React Best Practices optimized for agents and LLMs.
+A structured repository for creating and maintaining React Best Practices
+optimized for agents and LLMs.
 
 ## Structure
 
@@ -124,4 +125,5 @@ When adding or modifying rules:
 
 ## Acknowledgments
 
-Originally created by [@shuding](https://x.com/shuding) at [Vercel](https://vercel.com).
+Originally created by [@shuding](https://x.com/shuding) at
+[Vercel](https://vercel.com).

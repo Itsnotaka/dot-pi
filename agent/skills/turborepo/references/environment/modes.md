@@ -1,6 +1,7 @@
 # Environment Modes
 
-Turborepo supports different modes for handling environment variables during task execution.
+Turborepo supports different modes for handling environment variables during
+task execution.
 
 ## Strict Mode (Default)
 
@@ -8,7 +9,8 @@ Only explicitly configured variables are available to tasks.
 
 **Behavior:**
 
-- Tasks only see vars listed in `env`, `globalEnv`, `passThroughEnv`, or `globalPassThroughEnv`
+- Tasks only see vars listed in `env`, `globalEnv`, `passThroughEnv`, or
+  `globalPassThroughEnv`
 - Unlisted vars are filtered out
 - Tasks fail if they require unlisted variables
 
@@ -47,7 +49,8 @@ turbo run build --env-mode=loose
 
 ## Framework Inference (Automatic)
 
-Turborepo automatically detects frameworks and includes their conventional env vars.
+Turborepo automatically detects frameworks and includes their conventional env
+vars.
 
 ### Inferred Variables by Framework
 
@@ -78,11 +81,11 @@ Or exclude specific patterns in config:
 
 ```json
 {
-	"tasks": {
-		"build": {
-			"env": ["!NEXT_PUBLIC_*"]
-		}
-	}
+  "tasks": {
+    "build": {
+      "env": ["!NEXT_PUBLIC_*"]
+    }
+  }
 }
 ```
 

@@ -92,14 +92,21 @@ Every tool returns:
 }
 ```
 
-`content` is what the model sees. `details` is for TUI rendering and session state reconstruction. Built-in tools have typed details (e.g., `BashToolDetails` with `exitCode`, `command`, `cwd`).
+`content` is what the model sees. `details` is for TUI rendering and session
+state reconstruction. Built-in tools have typed details (e.g., `BashToolDetails`
+with `exitCode`, `command`, `cwd`).
 
 ## Output Truncation
 
 Tools MUST truncate output. Built-in limit: 50KB / 2000 lines (whichever first).
 
 ```typescript
-import { truncateHead, truncateTail, DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES } from "@mariozechner/pi-coding-agent";
+import {
+  truncateHead,
+  truncateTail,
+  DEFAULT_MAX_BYTES,
+  DEFAULT_MAX_LINES,
+} from "@mariozechner/pi-coding-agent";
 ```
 
 - `truncateHead` — keep beginning (file reads, search results)
@@ -115,9 +122,12 @@ Extensions discovered from:
 4. `settings.json` → `extensions` array
 5. `settings.json` → `packages` array (npm/git)
 
-Loaded via [jiti](https://github.com/unjs/jiti) — TypeScript runs without compilation. Each extension exports a default function receiving `ExtensionAPI`.
+Loaded via [jiti](https://github.com/unjs/jiti) — TypeScript runs without
+compilation. Each extension exports a default function receiving `ExtensionAPI`.
 
-Extensions load in discovery order. Event handlers chain: multiple extensions can handle the same event. Tool registrations with the same name override built-ins (last wins).
+Extensions load in discovery order. Event handlers chain: multiple extensions
+can handle the same event. Tool registrations with the same name override
+built-ins (last wins).
 
 ## System Prompt
 

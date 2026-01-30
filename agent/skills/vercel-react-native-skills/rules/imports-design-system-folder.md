@@ -17,12 +17,12 @@ import { View, Text } from "react-native";
 import { Button } from "@ui/button";
 
 function Profile() {
-	return (
-		<View>
-			<Text>Hello</Text>
-			<Button>Save</Button>
-		</View>
-	);
+  return (
+    <View>
+      <Text>Hello</Text>
+      <Button>Save</Button>
+    </View>
+  );
 }
 ```
 
@@ -33,8 +33,10 @@ function Profile() {
 import { View as RNView } from "react-native";
 
 // ideal: pick the props you will actually use to control implementation
-export function View(props: Pick<React.ComponentProps<typeof RNView>, "style" | "children">) {
-	return <RNView {...props} />;
+export function View(
+  props: Pick<React.ComponentProps<typeof RNView>, "style" | "children">
+) {
+  return <RNView {...props} />;
 }
 ```
 
@@ -54,12 +56,12 @@ import { Text } from "@/components/text";
 import { Button } from "@/components/button";
 
 function Profile() {
-	return (
-		<View>
-			<Text>Hello</Text>
-			<Button>Save</Button>
-		</View>
-	);
+  return (
+    <View>
+      <Text>Hello</Text>
+      <Button>Save</Button>
+    </View>
+  );
 }
 ```
 

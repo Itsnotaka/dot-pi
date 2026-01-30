@@ -6,7 +6,8 @@ General principles for running Turborepo in continuous integration environments.
 
 ### Always Use `turbo run` in CI
 
-**Never use the `turbo <tasks>` shorthand in CI or scripts.** Always use `turbo run`:
+**Never use the `turbo <tasks>` shorthand in CI or scripts.** Always use
+`turbo run`:
 
 ```bash
 # CORRECT - Always use in CI, package.json, scripts
@@ -16,11 +17,14 @@ turbo run build test lint
 turbo build test lint
 ```
 
-The shorthand `turbo <tasks>` is only for one-off invocations typed directly in terminal by humans or agents. Anywhere the command is written into code (CI, package.json, scripts), use `turbo run`.
+The shorthand `turbo <tasks>` is only for one-off invocations typed directly in
+terminal by humans or agents. Anywhere the command is written into code (CI,
+package.json, scripts), use `turbo run`.
 
 ### Enable Remote Caching
 
-Remote caching dramatically speeds up CI by sharing cached artifacts across runs.
+Remote caching dramatically speeds up CI by sharing cached artifacts across
+runs.
 
 Required environment variables:
 
@@ -31,7 +35,8 @@ TURBO_TEAM=your_team_slug
 
 ### Use --affected for PR Builds
 
-The `--affected` flag only runs tasks for packages changed since the base branch:
+The `--affected` flag only runs tasks for packages changed since the base
+branch:
 
 ```bash
 turbo run build test --affected
@@ -55,7 +60,8 @@ This requires Git history to compute what changed.
 
 ### Why Shallow Clones Break --affected
 
-Turborepo compares the current HEAD to the merge base with `main`. If that commit isn't fetched, `--affected` falls back to running everything.
+Turborepo compares the current HEAD to the merge base with `main`. If that
+commit isn't fetched, `--affected` falls back to running everything.
 
 For PRs with many commits, consider:
 

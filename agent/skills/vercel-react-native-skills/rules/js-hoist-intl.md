@@ -15,11 +15,11 @@ instantiate. Hoist to module scope when the locale/options are static.
 
 ```tsx
 function Price({ amount }: { amount: number }) {
-	const formatter = new Intl.NumberFormat("en-US", {
-		style: "currency",
-		currency: "USD",
-	});
-	return <Text>{formatter.format(amount)}</Text>;
+  const formatter = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  });
+  return <Text>{formatter.format(amount)}</Text>;
 }
 ```
 
@@ -27,19 +27,22 @@ function Price({ amount }: { amount: number }) {
 
 ```tsx
 const currencyFormatter = new Intl.NumberFormat("en-US", {
-	style: "currency",
-	currency: "USD",
+  style: "currency",
+  currency: "USD",
 });
 
 function Price({ amount }: { amount: number }) {
-	return <Text>{currencyFormatter.format(amount)}</Text>;
+  return <Text>{currencyFormatter.format(amount)}</Text>;
 }
 ```
 
 **For dynamic locales, memoize:**
 
 ```tsx
-const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }), [locale]);
+const dateFormatter = useMemo(
+  () => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }),
+  [locale]
+);
 ```
 
 **Common formatters to hoist:**
@@ -50,7 +53,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 const timeFormatter = new Intl.DateTimeFormat("en-US", { timeStyle: "short" });
 const percentFormatter = new Intl.NumberFormat("en-US", { style: "percent" });
 const relativeFormatter = new Intl.RelativeTimeFormat("en-US", {
-	numeric: "auto",
+  numeric: "auto",
 });
 ```
 

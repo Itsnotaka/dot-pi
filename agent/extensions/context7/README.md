@@ -1,6 +1,7 @@
 # Context7 Search Extension
 
-Searches up-to-date library/package documentation via the [Context7](https://context7.com) REST API.
+Searches up-to-date library/package documentation via the
+[Context7](https://context7.com) REST API.
 
 ## Setup
 
@@ -9,9 +10,9 @@ Searches up-to-date library/package documentation via the [Context7](https://con
 
 ```json
 {
-	"context7": {
-		"apiKey": "ctx7sk_..."
-	}
+  "context7": {
+    "apiKey": "ctx7sk_..."
+  }
 }
 ```
 

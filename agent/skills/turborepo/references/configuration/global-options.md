@@ -1,6 +1,7 @@
 # Global Options Reference
 
-Options that affect all tasks. Full docs: https://turborepo.dev/docs/reference/configuration
+Options that affect all tasks. Full docs:
+https://turborepo.dev/docs/reference/configuration
 
 ## globalEnv
 
@@ -8,7 +9,7 @@ Environment variables affecting all task hashes.
 
 ```json
 {
-	"globalEnv": ["CI", "NODE_ENV", "VERCEL_*"]
+  "globalEnv": ["CI", "NODE_ENV", "VERCEL_*"]
 }
 ```
 
@@ -20,7 +21,7 @@ Files that affect all task hashes.
 
 ```json
 {
-	"globalDependencies": ["tsconfig.json", ".env", "pnpm-lock.yaml"]
+  "globalDependencies": ["tsconfig.json", ".env", "pnpm-lock.yaml"]
 }
 ```
 
@@ -32,7 +33,7 @@ Variables available to tasks but not included in hash.
 
 ```json
 {
-	"globalPassThroughEnv": ["AWS_SECRET_KEY", "GITHUB_TOKEN"]
+  "globalPassThroughEnv": ["AWS_SECRET_KEY", "GITHUB_TOKEN"]
 }
 ```
 
@@ -44,7 +45,7 @@ Custom cache location. Default: `node_modules/.cache/turbo`.
 
 ```json
 {
-	"cacheDir": ".turbo/cache"
+  "cacheDir": ".turbo/cache"
 }
 ```
 
@@ -54,7 +55,7 @@ Background process for faster subsequent runs. Default: `true`.
 
 ```json
 {
-	"daemon": false
+  "daemon": false
 }
 ```
 
@@ -94,12 +95,12 @@ Configure remote caching.
 
 ```json
 {
-	"remoteCache": {
-		"enabled": true,
-		"signature": true,
-		"timeout": 30,
-		"uploadTimeout": 60
-	}
+  "remoteCache": {
+    "enabled": true,
+    "signature": true,
+    "timeout": 30,
+    "uploadTimeout": 60
+  }
 }
 ```
 
@@ -137,9 +138,9 @@ Enable experimental features that will become default in future versions.
 
 ```json
 {
-	"futureFlags": {
-		"errorsOnlyShowHash": true
-	}
+  "futureFlags": {
+    "errorsOnlyShowHash": true
+  }
 }
 ```
 
@@ -156,7 +157,7 @@ Disable update notifications when new turbo versions are available.
 
 ```json
 {
-	"noUpdateNotifier": true
+  "noUpdateNotifier": true
 }
 ```
 
@@ -166,7 +167,7 @@ Bypass the `packageManager` field requirement. Use for incremental migration.
 
 ```json
 {
-	"dangerouslyDisablePackageManagerCheck": true
+  "dangerouslyDisablePackageManagerCheck": true
 }
 ```
 
@@ -174,7 +175,8 @@ Bypass the `packageManager` field requirement. Use for incremental migration.
 
 ## Git Worktree Cache Sharing
 
-When working in Git worktrees, Turborepo automatically shares local cache between the main worktree and linked worktrees.
+When working in Git worktrees, Turborepo automatically shares local cache
+between the main worktree and linked worktrees.
 
 **How it works:**
 

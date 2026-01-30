@@ -109,7 +109,9 @@ If you can't use remote cache, cache Turborepo's local cache directory:
 - uses: actions/cache@v4
   with:
     path: .turbo
-    key: turbo-${{ runner.os }}-${{ hashFiles('**/turbo.json', '**/package-lock.json') }}
+    key:
+      turbo-${{ runner.os }}-${{ hashFiles('**/turbo.json',
+      '**/package-lock.json') }}
     restore-keys: |
       turbo-${{ runner.os }}-
 ```

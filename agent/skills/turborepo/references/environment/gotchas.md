@@ -4,17 +4,18 @@ Common mistakes and how to fix them.
 
 ## .env Files Must Be in `inputs`
 
-Turbo does NOT read `.env` files. Your framework (Next.js, Vite, etc.) or `dotenv` loads them. But Turbo needs to know when they change.
+Turbo does NOT read `.env` files. Your framework (Next.js, Vite, etc.) or
+`dotenv` loads them. But Turbo needs to know when they change.
 
 **Wrong:**
 
 ```json
 {
-	"tasks": {
-		"build": {
-			"env": ["DATABASE_URL"]
-		}
-	}
+  "tasks": {
+    "build": {
+      "env": ["DATABASE_URL"]
+    }
+  }
 }
 ```
 
@@ -22,46 +23,50 @@ Turbo does NOT read `.env` files. Your framework (Next.js, Vite, etc.) or `doten
 
 ```json
 {
-	"tasks": {
-		"build": {
-			"env": ["DATABASE_URL"],
-			"inputs": ["$TURBO_DEFAULT$", ".env", ".env.local", ".env.production"]
-		}
-	}
+  "tasks": {
+    "build": {
+      "env": ["DATABASE_URL"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.local", ".env.production"]
+    }
+  }
 }
 ```
 
 ## Strict Mode Filters CI Variables
 
-In strict mode, CI provider variables (GITHUB_TOKEN, GITLAB_CI, etc.) are filtered unless explicitly listed.
+In strict mode, CI provider variables (GITHUB_TOKEN, GITLAB_CI, etc.) are
+filtered unless explicitly listed.
 
-**Symptom:** Task fails with "authentication required" or "permission denied" in CI.
+**Symptom:** Task fails with "authentication required" or "permission denied" in
+CI.
 
 **Solution:**
 
 ```json
 {
-	"globalPassThroughEnv": ["GITHUB_TOKEN", "GITLAB_CI", "CI"]
+  "globalPassThroughEnv": ["GITHUB_TOKEN", "GITLAB_CI", "CI"]
 }
 ```
 
 ## passThroughEnv Doesn't Affect Hash
 
-Variables in `passThroughEnv` are available at runtime but changes WON'T trigger rebuilds.
+Variables in `passThroughEnv` are available at runtime but changes WON'T trigger
+rebuilds.
 
 **Dangerous example:**
 
 ```json
 {
-	"tasks": {
-		"build": {
-			"passThroughEnv": ["API_URL"]
-		}
-	}
+  "tasks": {
+    "build": {
+      "passThroughEnv": ["API_URL"]
+    }
+  }
 }
 ```
 
-If `API_URL` changes from staging to production, Turbo may serve a cached build pointing to the wrong API.
+If `API_URL` changes from staging to production, Turbo may serve a cached build
+pointing to the wrong API.
 
 **Use passThroughEnv only for:**
 
@@ -71,7 +76,8 @@ If `API_URL` changes from staging to production, Turbo may serve a cached build 
 
 ## Runtime-Created Variables Are Invisible
 
-Turbo captures env vars at startup. Variables created during execution aren't seen.
+Turbo captures env vars at startup. Variables created during execution aren't
+seen.
 
 **Won't work:**
 
@@ -92,19 +98,19 @@ If you use `.env.development` and `.env.production`, both should be in inputs.
 
 ```json
 {
-	"tasks": {
-		"build": {
-			"inputs": [
-				"$TURBO_DEFAULT$",
-				".env",
-				".env.local",
-				".env.development",
-				".env.development.local",
-				".env.production",
-				".env.production.local"
-			]
-		}
-	}
+  "tasks": {
+    "build": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env",
+        ".env.local",
+        ".env.development",
+        ".env.development.local",
+        ".env.production",
+        ".env.production.local"
+      ]
+    }
+  }
 }
 ```
 
@@ -112,18 +118,24 @@ If you use `.env.development` and `.env.production`, both should be in inputs.
 
 ```json
 {
-	"$schema": "https://turborepo.dev/schema.v2.json",
-	"globalEnv": ["CI", "NODE_ENV", "VERCEL"],
-	"globalPassThroughEnv": ["GITHUB_TOKEN", "VERCEL_URL"],
-	"tasks": {
-		"build": {
-			"dependsOn": ["^build"],
-			"env": ["DATABASE_URL", "NEXT_PUBLIC_*", "!NEXT_PUBLIC_ANALYTICS_ID"],
-			"passThroughEnv": ["SENTRY_AUTH_TOKEN"],
-			"inputs": ["$TURBO_DEFAULT$", ".env", ".env.local", ".env.production", ".env.production.local"],
-			"outputs": [".next/**", "!.next/cache/**"]
-		}
-	}
+  "$schema": "https://turborepo.dev/schema.v2.json",
+  "globalEnv": ["CI", "NODE_ENV", "VERCEL"],
+  "globalPassThroughEnv": ["GITHUB_TOKEN", "VERCEL_URL"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "env": ["DATABASE_URL", "NEXT_PUBLIC_*", "!NEXT_PUBLIC_ANALYTICS_ID"],
+      "passThroughEnv": ["SENTRY_AUTH_TOKEN"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env",
+        ".env.local",
+        ".env.production",
+        ".env.production.local"
+      ],
+      "outputs": [".next/**", "!.next/cache/**"]
+    }
+  }
 }
 ```
 

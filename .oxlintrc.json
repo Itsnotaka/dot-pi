@@ -1,9 +1,0 @@
-{
-	"rules": {
-		"typescript/no-explicit-any": "warn",
-		"typescript/no-unused-vars": "warn",
-		"typescript/no-floating-promises": "error",
-		"typescript/no-misused-promises": "error",
-		"typescript/await-thenable": "error"
-	}
-}

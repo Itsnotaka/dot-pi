@@ -9,14 +9,16 @@
 turbo run build test lint --affected
 ```
 
-This compares your current branch to the default branch (usually `main` or `master`) and runs tasks in:
+This compares your current branch to the default branch (usually `main` or
+`master`) and runs tasks in:
 
 1. Packages with file changes
 2. Packages that depend on changed packages (dependents)
 
 ### Why Include Dependents?
 
-If you change `@repo/ui`, packages that import `@repo/ui` (like `apps/web`) need to re-run their tasks to verify they still work with the changes.
+If you change `@repo/ui`, packages that import `@repo/ui` (like `apps/web`) need
+to re-run their tasks to verify they still work with the changes.
 
 ### Customizing --affected
 

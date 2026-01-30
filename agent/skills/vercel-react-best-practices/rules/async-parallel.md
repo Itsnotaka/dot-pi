@@ -7,7 +7,8 @@ tags: async, parallelization, promises, waterfalls
 
 ## Promise.all() for Independent Operations
 
-When async operations have no interdependencies, execute them concurrently using `Promise.all()`.
+When async operations have no interdependencies, execute them concurrently using
+`Promise.all()`.
 
 **Incorrect (sequential execution, 3 round trips):**
 
@@ -20,5 +21,9 @@ const comments = await fetchComments();
 **Correct (parallel execution, 1 round trip):**
 
 ```typescript
-const [user, posts, comments] = await Promise.all([fetchUser(), fetchPosts(), fetchComments()]);
+const [user, posts, comments] = await Promise.all([
+  fetchUser(),
+  fetchPosts(),
+  fetchComments(),
+]);
 ```

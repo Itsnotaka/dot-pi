@@ -4,7 +4,8 @@ Turborepo integrates seamlessly with Vercel for monorepo deployments.
 
 ## Remote Cache
 
-Remote caching is **automatically enabled** when deploying to Vercel. No configuration needed - Vercel detects Turborepo and enables caching.
+Remote caching is **automatically enabled** when deploying to Vercel. No
+configuration needed - Vercel detects Turborepo and enables caching.
 
 This means:
 
@@ -40,7 +41,8 @@ npx turbo-ignore
 
 ### How It Works
 
-`turbo-ignore` checks if the current package (or its dependencies) changed since the last successful deployment:
+`turbo-ignore` checks if the current package (or its dependencies) changed since
+the last successful deployment:
 
 1. Compares current commit to last deployed commit
 2. Uses Turborepo's dependency graph

@@ -5,11 +5,12 @@
 ```typescript
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 export default function (pi: ExtensionAPI) {
-	/* ... */
+  /* ... */
 }
 ```
 
-Loaded via jiti — TypeScript runs without compilation. Place in `~/.pi/agent/extensions/name.ts` or `~/.pi/agent/extensions/name/index.ts`.
+Loaded via jiti — TypeScript runs without compilation. Place in
+`~/.pi/agent/extensions/name.ts` or `~/.pi/agent/extensions/name/index.ts`.
 
 ## ExtensionAPI Methods
 
@@ -100,7 +101,8 @@ ctx.getContextUsage()  // Token usage
 ctx.compact(opts?)  // Trigger compaction
 ```
 
-Commands get `ExtensionCommandContext` with additional: `waitForIdle()`, `newSession()`, `fork()`, `navigateTree()`.
+Commands get `ExtensionCommandContext` with additional: `waitForIdle()`,
+`newSession()`, `fork()`, `navigateTree()`.
 
 ## Tool Registration
 
@@ -109,31 +111,36 @@ import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai"; // Required for Google compatibility
 
 pi.registerTool({
-	name: "tool_name",
-	label: "Display Name",
-	description: "What LLM sees",
-	parameters: Type.Object({
-		action: StringEnum(["list", "add"] as const), // NOT Type.Union/Type.Literal
-		text: Type.Optional(Type.String()),
-	}),
-	async execute(toolCallId, params, onUpdate, ctx, signal) {
-		onUpdate?.({ content: [{ type: "text", text: "progress..." }], details: {} });
-		if (signal?.aborted) return { content: [{ type: "text", text: "Cancelled" }] };
-		return {
-			content: [{ type: "text", text: "LLM sees this" }],
-			details: { anything: "for rendering" },
-		};
-	},
-	renderCall(args, theme) {
-		return new Text("...", 0, 0);
-	},
-	renderResult(result, { expanded, isPartial }, theme) {
-		return new Text("...", 0, 0);
-	},
+  name: "tool_name",
+  label: "Display Name",
+  description: "What LLM sees",
+  parameters: Type.Object({
+    action: StringEnum(["list", "add"] as const), // NOT Type.Union/Type.Literal
+    text: Type.Optional(Type.String()),
+  }),
+  async execute(toolCallId, params, onUpdate, ctx, signal) {
+    onUpdate?.({
+      content: [{ type: "text", text: "progress..." }],
+      details: {},
+    });
+    if (signal?.aborted)
+      return { content: [{ type: "text", text: "Cancelled" }] };
+    return {
+      content: [{ type: "text", text: "LLM sees this" }],
+      details: { anything: "for rendering" },
+    };
+  },
+  renderCall(args, theme) {
+    return new Text("...", 0, 0);
+  },
+  renderResult(result, { expanded, isPartial }, theme) {
+    return new Text("...", 0, 0);
+  },
 });
 ```
 
-**Critical:** Use `StringEnum` not `Type.Union`/`Type.Literal` for enums — Google's API breaks otherwise.
+**Critical:** Use `StringEnum` not `Type.Union`/`Type.Literal` for enums —
+Google's API breaks otherwise.
 
 ## Message Delivery Modes
 
@@ -153,12 +160,12 @@ Store state in tool `details`, reconstruct on `session_start`:
 
 ```typescript
 pi.on("session_start", async (_event, ctx) => {
-	for (const entry of ctx.sessionManager.getBranch()) {
-		if (entry.type === "message" && entry.message.role === "toolResult") {
-			if (entry.message.toolName === "my_tool") {
-				myState = entry.message.details?.state;
-			}
-		}
-	}
+  for (const entry of ctx.sessionManager.getBranch()) {
+    if (entry.type === "message" && entry.message.role === "toolResult") {
+      if (entry.message.toolName === "my_tool") {
+        myState = entry.message.details?.state;
+      }
+    }
+  }
 });
 ```

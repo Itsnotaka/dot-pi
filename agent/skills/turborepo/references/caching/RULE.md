@@ -8,7 +8,8 @@ Turborepo's core principle: **never do the same work twice**.
 fingerprint(inputs) → stored outputs
 ```
 
-If inputs haven't changed, restore outputs from cache instead of re-running the task.
+If inputs haven't changed, restore outputs from cache instead of re-running the
+task.
 
 ## What Determines the Cache Key
 
@@ -23,8 +24,8 @@ These affect ALL tasks in the repo:
 
 ```json
 {
-	"globalDependencies": [".env", "tsconfig.base.json"],
-	"globalEnv": ["CI", "NODE_ENV"]
+  "globalDependencies": [".env", "tsconfig.base.json"],
+  "globalEnv": ["CI", "NODE_ENV"]
 }
 ```
 
@@ -40,13 +41,13 @@ These affect specific tasks:
 
 ```json
 {
-	"tasks": {
-		"build": {
-			"dependsOn": ["^build"],
-			"inputs": ["src/**", "package.json", "tsconfig.json"],
-			"env": ["API_URL"]
-		}
-	}
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "package.json", "tsconfig.json"],
+      "env": ["API_URL"]
+    }
+  }
 }
 ```
 
@@ -57,11 +58,11 @@ These affect specific tasks:
 
 ```json
 {
-	"tasks": {
-		"build": {
-			"outputs": ["dist/**", ".next/**"]
-		}
-	}
+  "tasks": {
+    "build": {
+      "outputs": ["dist/**", ".next/**"]
+    }
+  }
 }
 ```
 

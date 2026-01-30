@@ -7,7 +7,8 @@ tags: javascript, regexp, optimization, memoization
 
 ## Hoist RegExp Creation
 
-Don't create RegExp inside render. Hoist to module scope or memoize with `useMemo()`.
+Don't create RegExp inside render. Hoist to module scope or memoize with
+`useMemo()`.
 
 **Incorrect (new RegExp every render):**
 
