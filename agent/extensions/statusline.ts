@@ -26,9 +26,6 @@ import { truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
 export default function (pi: ExtensionAPI) {
   let enabled = true;
 
-  const filesChanged = new Set<string>();
-  let diffStats = { added: 0, changed: 0, deleted: 0 };
-
   pi.registerCommand("statusline", {
     description: "Toggle clean statusline",
     handler: async (_args, ctx) => {
@@ -45,45 +42,8 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("session_start", async (_event, ctx) => {
-    filesChanged.clear();
-    diffStats = { added: 0, changed: 0, deleted: 0 };
     if (enabled) setupFooter(ctx);
   });
-
-  pi.on("tool_call", async (event, _ctx) => {
-    trackFileChanges(event);
-  });
-
-  function trackFileChanges(event: ToolCallEvent) {
-    const { toolName, input } = event;
-
-    if (toolName === "edit_file" && typeof input.path === "string") {
-      filesChanged.add(input.path);
-
-      if (
-        typeof input.old_str === "string" &&
-        typeof input.new_str === "string"
-      ) {
-        const oldLines = input.old_str.split("\n").length;
-        const newLines = input.new_str.split("\n").length;
-        const diff = newLines - oldLines;
-
-        if (diff > 0) diffStats.added += diff;
-        else if (diff < 0) diffStats.deleted += Math.abs(diff);
-        else diffStats.changed++;
-      }
-    } else if (
-      (toolName === "create_file" || toolName === "write_file") &&
-      typeof input.path === "string"
-    ) {
-      filesChanged.add(input.path);
-
-      if (typeof input.content === "string") {
-        const lines = input.content.split("\n").length;
-        diffStats.added += lines;
-      }
-    }
-  }
 
   function setupFooter(ctx: ExtensionContext) {
     if (!ctx.hasUI) return;
@@ -158,32 +118,7 @@ export default function (pi: ExtensionAPI) {
             Math.max(1, width - visibleWidth(left) - visibleWidth(right) - 2)
           );
 
-          const lines = [truncateToWidth(` ${left}${gap}${right} `, width)];
-
-          if (filesChanged.size > 0) {
-            const fileCount = theme.fg(
-              "dim",
-              `${filesChanged.size} file${filesChanged.size === 1 ? "" : "s"}`
-            );
-            const stats = [
-              diffStats.added > 0
-                ? theme.fg("success", `+${diffStats.added}`)
-                : null,
-              diffStats.changed > 0
-                ? theme.fg("warning", `~${diffStats.changed}`)
-                : null,
-              diffStats.deleted > 0
-                ? theme.fg("error", `-${diffStats.deleted}`)
-                : null,
-            ]
-              .filter(Boolean)
-              .join(" ");
-
-            const secondLine = ` ${fileCount}${stats ? " " + stats : ""}`;
-            lines.push(truncateToWidth(secondLine, width));
-          }
-
-          return lines;
+          return [truncateToWidth(` ${left}${gap}${right} `, width)];
         },
       };
     });
