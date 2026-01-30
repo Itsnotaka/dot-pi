@@ -82,7 +82,7 @@ Modes:
 ## Workflow & Planning
 
 - Use oracle to create a plan for the task.
-- For complex tasks, create a brief plan in a markdown file with a task-relevant name.
+- For complex tasks, create a brief plan in `.pi/plans/` with a task-relevant name.
 - Make the plan extremely concise. Sacrifice grammar for the sake of concision.
 - At the end of each plan, give me a list of unresolved questions to answer, if any.
 - Use search tools (`rg`, `fd`, `grep`) to locate relevant code before editing; only use the **search** subagent when explicitly requested or clearly necessary.
