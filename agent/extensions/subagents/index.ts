@@ -121,8 +121,8 @@ function formatToolCall(
 		}
 		case "websearch":
 		case "WebSearch": {
-			const objective = (args.objective as string) || "...";
-			const preview = objective.length > 60 ? `${objective.slice(0, 60)}...` : objective;
+			const query = (args.query as string) || "...";
+			const preview = query.length > 60 ? `${query.slice(0, 60)}...` : query;
 			return themeFg("muted", "⌕ ") + themeFg("dim", preview);
 		}
 		default: {
