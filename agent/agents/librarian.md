@@ -1,0 +1,1 @@
+../extensions/subagents/agents/librarian.md

@@ -1,0 +1,4 @@
+settings.json
+auth.json
+sessions/
+.DS_Store
