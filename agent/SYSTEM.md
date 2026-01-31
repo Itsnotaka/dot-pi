@@ -344,6 +344,13 @@ available in your environment.
   and optional `path` param for sparse checkout of large repos. Clones
   auto-cleanup on session end.
 
+### Ask User
+
+Use `ask_user` to ask 1–4 quick multiple-choice questions when you need
+clarification. Provide a plain-text questionnaire with numbered questions, a
+`[topic]` line, and 2–4 `[option]` lines per question. Do not include an "Own
+answer" option — the UI adds it automatically.
+
 ### LSP Diagnostics
 
 LSP diagnostics run automatically after every edit/write to TypeScript or Python
