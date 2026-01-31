@@ -5,7 +5,7 @@
  * URLs passed in the query are fetched directly (no API key needed).
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, Theme } from "@mariozechner/pi-coding-agent";
 
 import { Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
@@ -76,7 +76,7 @@ function loadApiKey(): string | null {
   return null;
 }
 
-function formatResultLine(result: SearchResult, theme: any): string {
+function formatResultLine(result: SearchResult, theme: Theme): string {
   const title = result.title?.trim() || "";
   const desc = title ? shorten(title, 48) : "";
   const parts = [

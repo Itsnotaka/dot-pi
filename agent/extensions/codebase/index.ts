@@ -14,6 +14,7 @@
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+
 import { StringEnum } from "@mariozechner/pi-ai";
 import { Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
@@ -65,25 +66,44 @@ type GitErrorKind =
 const ERROR_PATTERNS: [GitErrorKind, RegExp[]][] = [
   [
     "branch_not_found",
-    [/couldn't find remote ref/i, /Remote branch .* not found/i, /fatal: invalid refspec/i],
+    [
+      /couldn't find remote ref/i,
+      /Remote branch .* not found/i,
+      /fatal: invalid refspec/i,
+    ],
   ],
   [
     "repo_not_found",
-    [/Repository not found/i, /remote: Repository not found/i, /fatal: repository .* not found/i],
+    [
+      /Repository not found/i,
+      /remote: Repository not found/i,
+      /fatal: repository .* not found/i,
+    ],
   ],
   [
     "auth_failed",
-    [/Authentication failed/i, /could not read Username/i, /Permission denied/i, /403/],
+    [
+      /Authentication failed/i,
+      /could not read Username/i,
+      /Permission denied/i,
+      /403/,
+    ],
   ],
   ["rate_limited", [/rate limit/i, /too many requests/i, /429/]],
   [
     "network_error",
-    [/Could not resolve host/i, /Connection refused/i, /Connection timed out/i, /SSL/i],
+    [
+      /Could not resolve host/i,
+      /Connection refused/i,
+      /Connection timed out/i,
+      /SSL/i,
+    ],
   ],
 ];
 
 const ERROR_HINTS: Record<GitErrorKind, string> = {
-  branch_not_found: "Try omitting branch to auto-detect default, or specify an existing branch.",
+  branch_not_found:
+    "Try omitting branch to auto-detect default, or specify an existing branch.",
   repo_not_found: "Check the owner/repo spelling or URL.",
   auth_failed: "Private repo? Ensure git credentials or gh auth is configured.",
   rate_limited: "Wait a few minutes or authenticate to raise rate limits.",
@@ -91,7 +111,10 @@ const ERROR_HINTS: Record<GitErrorKind, string> = {
   unknown: "Check the repo URL and try again.",
 };
 
-function classifyGitError(stderr: string): { kind: GitErrorKind; hint: string } {
+function classifyGitError(stderr: string): {
+  kind: GitErrorKind;
+  hint: string;
+} {
   for (const [kind, patterns] of ERROR_PATTERNS) {
     if (patterns.some((p) => p.test(stderr))) {
       return { kind, hint: ERROR_HINTS[kind] };
@@ -144,7 +167,10 @@ function cloneRepo(
     git(
       `clone --depth 1 --filter=blob:none --no-checkout --sparse --single-branch --branch "${branch}" "${repoUrl}" "${clonePath}"`
     );
-    git(`sparse-checkout set ${sparsePaths.map((p) => `"${p}"`).join(" ")}`, clonePath);
+    git(
+      `sparse-checkout set ${sparsePaths.map((p) => `"${p}"`).join(" ")}`,
+      clonePath
+    );
     git("checkout", clonePath);
   } else {
     git(
@@ -170,7 +196,10 @@ function cloneRepo(
 }
 
 function writeMarker(info: CloneInfo) {
-  writeFileSync(join(info.clonePath, MARKER_FILE), JSON.stringify(info, null, 2));
+  writeFileSync(
+    join(info.clonePath, MARKER_FILE),
+    JSON.stringify(info, null, 2)
+  );
 }
 
 function readMarker(dir: string): CloneInfo | null {
@@ -213,14 +242,25 @@ function getInitialContext(clonePath: string, sparsePaths?: string[]): string {
     lines.push("Sparse checkout: only " + sparsePaths.join(", ") + " fetched");
   }
 
-  const readmeCandidates = ["README.md", "readme.md", "README", "README.rst", "README.txt"];
+  const readmeCandidates = [
+    "README.md",
+    "readme.md",
+    "README",
+    "README.rst",
+    "README.txt",
+  ];
   for (const name of readmeCandidates) {
     const p = join(clonePath, name);
     if (existsSync(p)) {
       try {
         const content = readFileSync(p, "utf-8");
-        const preview = content.split("\n").slice(0, README_PREVIEW_LINES).join("\n");
-        lines.push(`\n--- ${name} (first ${README_PREVIEW_LINES} lines) ---\n${preview}`);
+        const preview = content
+          .split("\n")
+          .slice(0, README_PREVIEW_LINES)
+          .join("\n");
+        lines.push(
+          `\n--- ${name} (first ${README_PREVIEW_LINES} lines) ---\n${preview}`
+        );
       } catch {}
       break;
     }
@@ -296,7 +336,8 @@ export default function (pi: ExtensionAPI) {
       action: StringEnum(["create", "destroy", "list"] as const),
       repo: Type.Optional(
         Type.String({
-          description: "GitHub repo URL or owner/repo shorthand (for create action)",
+          description:
+            "GitHub repo URL or owner/repo shorthand (for create action)",
         })
       ),
       branch: Type.Optional(
@@ -312,13 +353,20 @@ export default function (pi: ExtensionAPI) {
       ),
       id: Type.Optional(
         Type.String({
-          description: "Clone ID (required for destroy when multiple clones exist)",
+          description:
+            "Clone ID (required for destroy when multiple clones exist)",
         })
       ),
     }),
 
     async execute(toolCallId, params, onUpdate, ctx) {
-      const { action, repo, branch, path: sparsePath, id } = params as {
+      const {
+        action,
+        repo,
+        branch,
+        path: sparsePath,
+        id,
+      } = params as {
         action: string;
         repo?: string;
         branch?: string;
@@ -345,7 +393,10 @@ export default function (pi: ExtensionAPI) {
             : `https://github.com/${repo}`;
 
           const sparsePaths = sparsePath
-            ? sparsePath.split(",").map((s) => s.trim()).filter(Boolean)
+            ? sparsePath
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
             : undefined;
 
           onUpdate?.({
@@ -390,7 +441,12 @@ export default function (pi: ExtensionAPI) {
           }
 
           try {
-            const info = cloneRepo(repoUrl, resolvedBranch, sparsePaths, symlinkDir());
+            const info = cloneRepo(
+              repoUrl,
+              resolvedBranch,
+              sparsePaths,
+              symlinkDir()
+            );
             activeClones.set(info.id, info);
 
             const context = getInitialContext(info.clonePath, sparsePaths);
@@ -459,7 +515,10 @@ export default function (pi: ExtensionAPI) {
             activeClones.delete(clone.id);
             return {
               content: [
-                { type: "text" as const, text: `Destroyed clone '${clone.id}'.` },
+                {
+                  type: "text" as const,
+                  text: `Destroyed clone '${clone.id}'.`,
+                },
               ],
             };
           } catch (e) {
@@ -483,8 +542,7 @@ export default function (pi: ExtensionAPI) {
           }
 
           const lines = Array.from(activeClones.values()).map(
-            (c) =>
-              `${c.id}  ${c.repo}  (${c.branch})  .pi/codebases/${c.id}`
+            (c) => `${c.id}  ${c.repo}  (${c.branch})  .pi/codebases/${c.id}`
           );
           return {
             content: [{ type: "text" as const, text: lines.join("\n") }],

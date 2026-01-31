@@ -12,12 +12,16 @@
  * Uses JSON mode to capture structured output from subagents.
  */
 
-import type { AgentToolResult } from "@mariozechner/pi-agent-core";
+import type {
+  AgentToolResult,
+  AgentToolUpdateCallback,
+} from "@mariozechner/pi-agent-core";
 import type { Message } from "@mariozechner/pi-ai";
 
 import { StringEnum } from "@mariozechner/pi-ai";
 import {
   type ExtensionAPI,
+  type ThemeColor,
   getMarkdownTheme,
 } from "@mariozechner/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
@@ -86,7 +90,7 @@ function formatUsageStats(
   return parts.join(sep);
 }
 
-type ThemeFg = (color: any, text: string) => string;
+type ThemeFg = (color: ThemeColor, text: string) => string;
 
 const thinkingColorMap: Record<string, string> = {
   minimal: "thinkingMinimal",
@@ -168,7 +172,7 @@ function formatStatusLine(
 function formatToolCall(
   toolName: string,
   args: Record<string, unknown>,
-  themeFg: (color: any, text: string) => string
+  themeFg: ThemeFg
 ): string {
   const shortenPath = (p: string) => {
     const home = os.homedir();
@@ -348,7 +352,7 @@ function writePromptToTempFile(
   return { dir: tmpDir, filePath };
 }
 
-type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
+type OnUpdateCallback = AgentToolUpdateCallback<SubagentDetails>;
 
 async function runSingleAgent(
   defaultCwd: string,
@@ -416,8 +420,12 @@ async function runSingleAgent(
       contextTokens: 0,
       turns: 0,
     },
-    model: agent.model?.includes("/") ? agent.model.split("/").slice(1).join("/") : agent.model,
-    provider: agent.model?.includes("/") ? agent.model.split("/")[0] : undefined,
+    model: agent.model?.includes("/")
+      ? agent.model.split("/").slice(1).join("/")
+      : agent.model,
+    provider: agent.model?.includes("/")
+      ? agent.model.split("/")[0]
+      : undefined,
     thinking: agent.thinking,
     step,
   };
@@ -1219,7 +1227,10 @@ export default function (pi: ExtensionAPI) {
             if (stepStatus) container.addChild(new Text(stepStatus, 0, 0));
           }
 
-          const usageStr = formatUsageStats(aggregateUsage(details.results), theme.fg.bind(theme));
+          const usageStr = formatUsageStats(
+            aggregateUsage(details.results),
+            theme.fg.bind(theme)
+          );
           if (usageStr) {
             container.addChild(new Spacer(1));
             container.addChild(
@@ -1246,7 +1257,10 @@ export default function (pi: ExtensionAPI) {
             text += `\n${theme.fg("muted", "(no output)")}`;
           else text += `\n${renderDisplayItems(displayItems, 5)}`;
         }
-        const usageStr = formatUsageStats(aggregateUsage(details.results), theme.fg.bind(theme));
+        const usageStr = formatUsageStats(
+          aggregateUsage(details.results),
+          theme.fg.bind(theme)
+        );
         if (usageStr) text += `\n\n${theme.fg("dim", "Total: ")}${usageStr}`;
         text += `\n${theme.fg("muted", "(Ctrl+O to expand)")}`;
         return new Text(text, 0, 0);
@@ -1336,7 +1350,10 @@ export default function (pi: ExtensionAPI) {
             if (taskStatus) container.addChild(new Text(taskStatus, 0, 0));
           }
 
-          const usageStr = formatUsageStats(aggregateUsage(details.results), theme.fg.bind(theme));
+          const usageStr = formatUsageStats(
+            aggregateUsage(details.results),
+            theme.fg.bind(theme)
+          );
           if (usageStr) {
             container.addChild(new Spacer(1));
             container.addChild(
@@ -1362,7 +1379,10 @@ export default function (pi: ExtensionAPI) {
           else text += `\n${renderDisplayItems(displayItems, 5)}`;
         }
         if (!isRunning) {
-          const usageStr = formatUsageStats(aggregateUsage(details.results), theme.fg.bind(theme));
+          const usageStr = formatUsageStats(
+            aggregateUsage(details.results),
+            theme.fg.bind(theme)
+          );
           if (usageStr) text += `\n\n${theme.fg("dim", "Total: ")}${usageStr}`;
         }
         if (!expanded) text += `\n${theme.fg("muted", "(Ctrl+O to expand)")}`;

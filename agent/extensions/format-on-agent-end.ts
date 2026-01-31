@@ -142,7 +142,7 @@ export default function (pi: ExtensionAPI) {
   const editedFiles = new Set<string>();
   let retryCount = 0;
 
-  pi.on("tool_result", async (event: any) => {
+  pi.on("tool_result", async (event) => {
     if (event.isError) return;
     if (event.toolName === "edit" || event.toolName === "write") {
       const filePath = event.input?.path as string;
@@ -154,7 +154,7 @@ export default function (pi: ExtensionAPI) {
     editedFiles.clear();
   });
 
-  pi.on("agent_end", async (_event: any, ctx: any) => {
+  pi.on("agent_end", async (_event, ctx) => {
     if (editedFiles.size === 0) return;
 
     if (retryCount > 0) {

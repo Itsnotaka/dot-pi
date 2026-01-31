@@ -142,6 +142,43 @@ pi.registerTool({
 **Critical:** Use `StringEnum` not `Type.Union`/`Type.Literal` for enums —
 Google's API breaks otherwise.
 
+## Types
+
+`pi.on()` is fully typed via overloads — handler parameters are inferred from
+the event name. Never annotate handler params manually.
+
+```typescript
+// ✓ Correct — types inferred from the event string
+pi.on("tool_result", async (event, ctx) => { ... });
+pi.on("agent_end", async (_event, ctx) => { ... });
+
+// ✗ Wrong — redundant annotations
+pi.on("tool_result", async (event: ToolResultEvent) => { ... });
+```
+
+For standalone functions that receive a theme, import `Theme` or `ThemeColor`:
+
+```typescript
+import { type ThemeColor, type Theme } from "@mariozechner/pi-coding-agent";
+
+type ThemeFg = (color: ThemeColor, text: string) => string;
+function render(theme: Theme): string {
+  return theme.fg("accent", "text");
+}
+```
+
+Let TypeScript infer types for extension-internal data. Only define explicit
+types when needed for recursive structures or exports.
+
+Key packages:
+
+| Package           | Types                                                             |
+| ----------------- | ----------------------------------------------------------------- |
+| `pi-coding-agent` | `ExtensionAPI`, `ExtensionContext`, `Theme`, `ThemeColor`         |
+| `pi-agent-core`   | `AgentTool`, `AgentToolResult`, `AgentToolUpdateCallback`         |
+| `pi-ai`           | `Message`, `Model`, `StringEnum`                                  |
+| `pi-tui`          | `Component`, `Container`, `Text`, `Box`, `SelectList`, `Markdown` |
+
 ## Message Delivery Modes
 
 ```typescript

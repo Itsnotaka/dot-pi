@@ -474,13 +474,7 @@ Use this before a new debugging session to remove old log entries.`,
     description:
       "Check if debug mode is currently active and get the debug URL.",
     parameters: Type.Object({}),
-    async execute(
-      _toolCallId,
-      _params,
-      _onUpdate,
-      _ctx,
-      _signal
-    ) {
+    async execute(_toolCallId, _params, _onUpdate, _ctx, _signal) {
       if (!server || !debugModeActive) {
         const details: { active: boolean; url?: string } = { active: false };
         return {

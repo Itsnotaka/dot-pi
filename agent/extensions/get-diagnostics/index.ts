@@ -39,7 +39,7 @@ export default function (pi: ExtensionAPI) {
     return server;
   }
 
-  pi.on("tool_result", async (event: any, ctx: any) => {
+  pi.on("tool_result", async (event, ctx) => {
     if (event.isError) return;
     if (event.toolName !== "edit" && event.toolName !== "write") return;
 
