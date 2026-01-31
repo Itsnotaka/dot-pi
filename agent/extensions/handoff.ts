@@ -9,7 +9,7 @@
  *   /handoff check the rest of the codebase for this fix
  */
 
-import type { ExtensionAPI, SessionEntry } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 import { complete, type Message } from "@mariozechner/pi-ai";
 import {
@@ -22,25 +22,19 @@ const SYSTEM_PROMPT = `You generate handoff prompts. A handoff transfers context
 
 Rules:
 - Output ONLY the prompt. No preamble, no "Here's the prompt", no wrapping.
-- Be ruthlessly selective. Carry forward only what the new thread needs for the stated goal.
-- Never summarize the whole conversation. Extract, don't recap.
+- Be selective, but not vague: include the concrete details the new thread needs to execute the stated goal.
+- Never summarize the whole conversation. Extract only what is relevant to the goal.
 - Include concrete details: exact file paths, function names, type signatures, API shapes, error messages, config values. Vague references like "the auth module" are useless without a path.
-- State decisions as facts, not history. Write "We use JWT with RS256" not "We discussed JWT vs session tokens and decided on JWT with RS256".
+- State decisions as facts, not history.
 - If code patterns or conventions were established, show a brief example rather than describing them.
-- The task must be specific and actionable. "Implement X" beats "Continue working on X".
+- The task must be specific and actionable.
 
-When extracting context, write from first person perspective ("I did...", "I told you...").
+Special case — plan phases:
+- If the user's goal involves executing a specific plan phase (e.g. "execute phase 1"), expand that phase into a detailed, ordered implementation checklist with concrete steps, file paths, and commands to run.
 
-Consider what would be useful to know based on the user's goal:
-- What did I just do or implement?
-- What instructions did I already give which are still relevant?
-- What files am I working on that should continue?
-- Did I provide a plan or spec that should be included?
-- What libraries, patterns, constraints, or preferences matter?
-- What important technical details did I discover?
-- What caveats, limitations, or open questions exist?
-
-Focus on capabilities and behavior, not file-by-file changes. Avoid excessive implementation details unless critical.
+Perspective:
+- In the "## Context" section only, write from first-person perspective ("I did...", "I found...").
+- In all other sections, write directly as instructions for the new thread (imperative voice).
 
 Format:
 
@@ -56,7 +50,7 @@ Format:
 
 ## Task
 
-[Specific, actionable goal. Include acceptance criteria or scope boundaries when they exist.]`;
+[Specific, actionable goal. Include a step-by-step checklist when appropriate. Include acceptance criteria or scope boundaries when they exist.]`;
 
 export default function (pi: ExtensionAPI) {
   pi.registerCommand("handoff", {
@@ -72,19 +66,25 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      const goal = args.trim();
+      let goal = args.trim();
       if (!goal) {
-        ctx.ui.notify("Usage: /handoff <goal for new thread>", "error");
-        return;
+        const input = await ctx.ui.input(
+          "Handoff goal",
+          "What should the new thread accomplish?"
+        );
+        if (!input) {
+          return;
+        }
+        goal = input.trim();
+        if (!goal) {
+          return;
+        }
       }
 
       const branch = ctx.sessionManager.getBranch();
-      const messages = branch
-        .filter(
-          (entry): entry is SessionEntry & { type: "message" } =>
-            entry.type === "message"
-        )
-        .map((entry) => entry.message);
+      const messages = branch.flatMap((entry) =>
+        entry.type === "message" ? [entry.message] : []
+      );
 
       if (messages.length === 0) {
         ctx.ui.notify("No conversation to hand off", "error");
@@ -129,10 +129,7 @@ export default function (pi: ExtensionAPI) {
             }
 
             return response.content
-              .filter(
-                (c): c is { type: "text"; text: string } => c.type === "text"
-              )
-              .map((c) => c.text)
+              .flatMap((c) => (c.type === "text" ? [c.text] : []))
               .join("\n");
           };
 
@@ -169,7 +166,6 @@ export default function (pi: ExtensionAPI) {
       }
 
       ctx.ui.setEditorText(editedPrompt);
-      ctx.ui.notify("Handoff ready. Submit when ready.", "info");
     },
   });
 }
