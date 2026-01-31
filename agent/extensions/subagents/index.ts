@@ -12,10 +12,7 @@
  * Uses JSON mode to capture structured output from subagents.
  */
 
-import type {
-  AgentToolResult,
-  AgentToolUpdateCallback,
-} from "@mariozechner/pi-agent-core";
+import type { AgentToolUpdateCallback } from "@mariozechner/pi-agent-core";
 import type { Message } from "@mariozechner/pi-ai";
 
 import { StringEnum } from "@mariozechner/pi-ai";
@@ -92,7 +89,7 @@ function formatUsageStats(
 
 type ThemeFg = (color: ThemeColor, text: string) => string;
 
-const thinkingColorMap: Record<string, string> = {
+const thinkingColorMap: Record<string, ThemeColor> = {
   minimal: "thinkingMinimal",
   low: "thinkingLow",
   medium: "thinkingMedium",
@@ -157,7 +154,7 @@ function formatStatusLine(
 
   let modelStr: string;
   if (thinking && thinking !== "off") {
-    const color = thinkingColorMap[thinking] || "thinkingMedium";
+    const color = thinkingColorMap[thinking] ?? "thinkingMedium";
     modelStr = themeFg(color, `${model} (${thinking})`);
   } else {
     modelStr = themeFg("toolTitle", model);
@@ -1054,11 +1051,20 @@ export default function (pi: ExtensionAPI) {
               new Text(theme.fg("error", `Error: ${r.errorMessage}`), 0, 0)
             );
           container.addChild(new Spacer(1));
-          container.addChild(new Text(theme.fg("muted", "─── Task ───"), 0, 0));
-          container.addChild(new Text(theme.fg("dim", r.task), 0, 0));
+          container.addChild(
+            new Text(
+              theme.fg(
+                "muted",
+                "─── Task (full context passed to subagent) ───"
+              ),
+              0,
+              0
+            )
+          );
+          container.addChild(new Markdown(r.task, 0, 0, mdTheme));
           container.addChild(new Spacer(1));
           container.addChild(
-            new Text(theme.fg("muted", "─── Output ───"), 0, 0)
+            new Text(theme.fg("muted", "─── Subagent Activity ───"), 0, 0)
           );
           if (displayItems.length === 0 && !finalOutput) {
             container.addChild(
@@ -1086,6 +1092,9 @@ export default function (pi: ExtensionAPI) {
             }
             if (finalOutput) {
               container.addChild(new Spacer(1));
+              container.addChild(
+                new Text(theme.fg("muted", "─── Final Response ───"), 0, 0)
+              );
               container.addChild(
                 new Markdown(finalOutput.trim(), 0, 0, mdTheme)
               );
@@ -1186,34 +1195,40 @@ export default function (pi: ExtensionAPI) {
               )
             );
             container.addChild(
-              new Text(
-                theme.fg("muted", "Task: ") + theme.fg("dim", r.task),
-                0,
-                0
-              )
+              new Text(theme.fg("muted", "Task (full context):"), 0, 0)
             );
+            container.addChild(new Markdown(r.task, 0, 0, mdTheme));
 
             // Show tool calls
-            for (const item of displayItems) {
-              if (item.type === "toolCall") {
-                container.addChild(
-                  new Text(
-                    theme.fg("muted", "→ ") +
-                      formatToolCall(
-                        item.name,
-                        item.args,
-                        theme.fg.bind(theme)
-                      ),
-                    0,
-                    0
-                  )
-                );
+            if (displayItems.some((item) => item.type === "toolCall")) {
+              container.addChild(new Spacer(1));
+              container.addChild(
+                new Text(theme.fg("muted", "Activity:"), 0, 0)
+              );
+              for (const item of displayItems) {
+                if (item.type === "toolCall") {
+                  container.addChild(
+                    new Text(
+                      theme.fg("muted", "→ ") +
+                        formatToolCall(
+                          item.name,
+                          item.args,
+                          theme.fg.bind(theme)
+                        ),
+                      0,
+                      0
+                    )
+                  );
+                }
               }
             }
 
             // Show final output as markdown
             if (finalOutput) {
               container.addChild(new Spacer(1));
+              container.addChild(
+                new Text(theme.fg("muted", "Response:"), 0, 0)
+              );
               container.addChild(
                 new Markdown(finalOutput.trim(), 0, 0, mdTheme)
               );

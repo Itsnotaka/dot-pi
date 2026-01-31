@@ -323,7 +323,27 @@ function getGitSubcommand(args: string[]): {
   return { subcommand: null, rest: [] };
 }
 
-const guardRules = [
+interface CommandInfo {
+  raw: string;
+  tokens: string[];
+  command: string | null;
+  commandName: string | null;
+  args: string[];
+  sudo: boolean;
+}
+
+interface Segment {
+  raw: string;
+  pipeline: CommandInfo[];
+}
+
+interface GuardRule {
+  label: string;
+  typed: boolean;
+  match: (command: CommandInfo, segment: Segment) => boolean;
+}
+
+const guardRules: GuardRule[] = [
   {
     label: "Git push",
     typed: false,

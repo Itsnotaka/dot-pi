@@ -359,7 +359,7 @@ export default function (pi: ExtensionAPI) {
       ),
     }),
 
-    async execute(toolCallId, params, onUpdate, ctx) {
+    async execute(toolCallId, params, onUpdate, _ctx, _signal) {
       const {
         action,
         repo,
@@ -377,15 +377,9 @@ export default function (pi: ExtensionAPI) {
       switch (action) {
         case "create": {
           if (!repo) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: "Missing 'repo' parameter. Provide a GitHub URL or owner/repo shorthand.",
-                },
-              ],
-              isError: true,
-            };
+            throw new Error(
+              "Missing 'repo' parameter. Provide a GitHub URL or owner/repo shorthand."
+            );
           }
 
           const repoUrl = repo.startsWith("http")
@@ -414,18 +408,13 @@ export default function (pi: ExtensionAPI) {
           let resolvedBranch: string;
           try {
             resolvedBranch = branch || resolveDefaultBranch(repoUrl);
-          } catch (e: any) {
-            const stderr = e.stderr || e.message || "";
+          } catch (e: unknown) {
+            const err = e as { stderr?: string; message?: string };
+            const stderr = err.stderr || err.message || "";
             const { kind, hint } = classifyGitError(stderr);
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: `Failed to detect default branch (${kind}): ${hint}\nRaw: ${stderr.slice(0, 200)}`,
-                },
-              ],
-              isError: true,
-            };
+            throw new Error(
+              `Failed to detect default branch (${kind}): ${hint}\nRaw: ${stderr.slice(0, 200)}`
+            );
           }
 
           if (!branch) {
@@ -477,37 +466,25 @@ export default function (pi: ExtensionAPI) {
                 sparsePaths,
               },
             };
-          } catch (e: any) {
-            const stderr = e.stderr || e.message || "";
+          } catch (e: unknown) {
+            const err = e as { stderr?: string; message?: string };
+            const stderr = err.stderr || err.message || "";
             const { kind, hint } = classifyGitError(stderr);
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: `Clone failed (${kind}): ${hint}\nRaw: ${stderr.slice(0, 300)}`,
-                },
-              ],
-              isError: true,
-            };
+            throw new Error(
+              `Clone failed (${kind}): ${hint}\nRaw: ${stderr.slice(0, 300)}`
+            );
           }
         }
 
         case "destroy": {
           const clone = id ? activeClones.get(id) : getOnlyActive();
           if (!clone) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: id
-                    ? `Clone '${id}' not found.`
-                    : activeClones.size === 0
-                      ? "No active clones."
-                      : "Multiple clones active. Specify an id.",
-                },
-              ],
-              isError: true,
-            };
+            const msg = id
+              ? `Clone '${id}' not found.`
+              : activeClones.size === 0
+                ? "No active clones."
+                : "Multiple clones active. Specify an id.";
+            throw new Error(msg);
           }
 
           try {
@@ -520,17 +497,12 @@ export default function (pi: ExtensionAPI) {
                   text: `Destroyed clone '${clone.id}'.`,
                 },
               ],
+              details: {},
             };
           } catch (e) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: `Failed to destroy: ${e instanceof Error ? e.message : e}`,
-                },
-              ],
-              isError: true,
-            };
+            throw new Error(
+              `Failed to destroy: ${e instanceof Error ? e.message : String(e)}`
+            );
           }
         }
 
@@ -538,6 +510,7 @@ export default function (pi: ExtensionAPI) {
           if (activeClones.size === 0) {
             return {
               content: [{ type: "text" as const, text: "No active clones." }],
+              details: {},
             };
           }
 
@@ -551,15 +524,9 @@ export default function (pi: ExtensionAPI) {
         }
 
         default:
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `Unknown action '${action}'. Use: create, destroy, list.`,
-              },
-            ],
-            isError: true,
-          };
+          throw new Error(
+            `Unknown action '${action}'. Use: create, destroy, list.`
+          );
       }
     },
 
@@ -582,17 +549,9 @@ export default function (pi: ExtensionAPI) {
           : "";
       if (!expanded) {
         const first = text.split("\n")[0] || "";
-        return new Text(
-          theme.fg(result.isError ? "error" : "muted", first),
-          0,
-          0
-        );
+        return new Text(theme.fg("muted", first), 0, 0);
       }
-      return new Text(
-        theme.fg(result.isError ? "error" : "toolOutput", text),
-        0,
-        0
-      );
+      return new Text(theme.fg("toolOutput", text), 0, 0);
     },
   });
 

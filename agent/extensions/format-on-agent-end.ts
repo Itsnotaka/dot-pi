@@ -250,7 +250,7 @@ export default function (pi: ExtensionAPI) {
       if (ctx.hasUI) {
         ctx.ui.notify(
           "Lint errors found after formatting — sending to agent",
-          "warn"
+          "warning"
         );
       }
 
