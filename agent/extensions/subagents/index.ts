@@ -50,21 +50,40 @@ function formatUsageStats(
     contextTokens?: number;
     turns?: number;
   },
-  model?: string
+  themeFg?: ThemeFg
 ): string {
-  const parts: string[] = [];
-  if (usage.turns)
-    parts.push(`${usage.turns} turn${usage.turns > 1 ? "s" : ""}`);
-  if (usage.input) parts.push(`↑${formatTokens(usage.input)}`);
-  if (usage.output) parts.push(`↓${formatTokens(usage.output)}`);
-  if (usage.cacheRead) parts.push(`R${formatTokens(usage.cacheRead)}`);
-  if (usage.cacheWrite) parts.push(`W${formatTokens(usage.cacheWrite)}`);
-  if (usage.cost) parts.push(`$${usage.cost.toFixed(4)}`);
-  if (usage.contextTokens && usage.contextTokens > 0) {
-    parts.push(`ctx:${formatTokens(usage.contextTokens)}`);
+  if (!themeFg) {
+    const parts: string[] = [];
+    if (usage.turns)
+      parts.push(`${usage.turns} turn${usage.turns > 1 ? "s" : ""}`);
+    if (usage.input) parts.push(`↑${formatTokens(usage.input)}`);
+    if (usage.output) parts.push(`↓${formatTokens(usage.output)}`);
+    if (usage.cost) parts.push(`$${usage.cost.toFixed(4)}`);
+    return parts.join(" · ");
   }
-  if (model) parts.push(model);
-  return parts.join(" ");
+  const sep = themeFg("dim", " · ");
+  const parts: string[] = [];
+  if (usage.turns) {
+    const label = usage.turns > 1 ? "turns" : "turn";
+    parts.push(
+      themeFg("muted", `${usage.turns}`) + themeFg("dim", ` ${label}`)
+    );
+  }
+  if (usage.input)
+    parts.push(
+      themeFg("accent", "↑") + themeFg("muted", formatTokens(usage.input))
+    );
+  if (usage.output)
+    parts.push(
+      themeFg("accent", "↓") + themeFg("muted", formatTokens(usage.output))
+    );
+  if (usage.cost) {
+    let costColor: "success" | "warning" | "error" = "success";
+    if (usage.cost > 0.5) costColor = "error";
+    else if (usage.cost > 0.1) costColor = "warning";
+    parts.push(themeFg(costColor, `$${usage.cost.toFixed(4)}`));
+  }
+  return parts.join(sep);
 }
 
 type ThemeFg = (color: any, text: string) => string;
@@ -77,25 +96,56 @@ const thinkingColorMap: Record<string, string> = {
   xhigh: "thinkingXhigh",
 };
 
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+function getSpinnerFrame(): string {
+  const idx = Math.floor(Date.now() / 80) % SPINNER_FRAMES.length;
+  return SPINNER_FRAMES[idx];
+}
+
 function formatStatusLine(
   r: SingleResult,
   themeFg: ThemeFg,
   _themeBold: (text: string) => string
 ): string {
+  const sep = themeFg("dim", " · ");
   const tokenParts: string[] = [];
-  if (r.usage.turns)
-    tokenParts.push(`${r.usage.turns} turn${r.usage.turns > 1 ? "s" : ""}`);
-  if (r.usage.input) tokenParts.push(`↑${formatTokens(r.usage.input)}`);
-  if (r.usage.output) tokenParts.push(`↓${formatTokens(r.usage.output)}`);
-  if (r.usage.cacheRead) tokenParts.push(`R${formatTokens(r.usage.cacheRead)}`);
-  if (r.usage.cacheWrite)
-    tokenParts.push(`W${formatTokens(r.usage.cacheWrite)}`);
-  if (r.usage.cost) tokenParts.push(`$${r.usage.cost.toFixed(4)}`);
-  if (r.usage.contextTokens && r.usage.contextTokens > 0)
-    tokenParts.push(`ctx:${formatTokens(r.usage.contextTokens)}`);
 
-  const usageStr =
-    tokenParts.length > 0 ? themeFg("dim", tokenParts.join(" ")) : "";
+  if (r.usage.turns) {
+    const label = r.usage.turns > 1 ? "turns" : "turn";
+    tokenParts.push(
+      themeFg("muted", `${r.usage.turns}`) + themeFg("dim", ` ${label}`)
+    );
+  }
+  if (r.usage.input)
+    tokenParts.push(
+      themeFg("accent", "↑") + themeFg("muted", formatTokens(r.usage.input))
+    );
+  if (r.usage.output)
+    tokenParts.push(
+      themeFg("accent", "↓") + themeFg("muted", formatTokens(r.usage.output))
+    );
+  if (r.usage.cacheRead)
+    tokenParts.push(
+      themeFg("dim", "R") + themeFg("muted", formatTokens(r.usage.cacheRead))
+    );
+  if (r.usage.cacheWrite)
+    tokenParts.push(
+      themeFg("dim", "W") + themeFg("muted", formatTokens(r.usage.cacheWrite))
+    );
+  if (r.usage.cost) {
+    let costColor: "success" | "warning" | "error" = "success";
+    if (r.usage.cost > 0.5) costColor = "error";
+    else if (r.usage.cost > 0.1) costColor = "warning";
+    tokenParts.push(themeFg(costColor, `$${r.usage.cost.toFixed(4)}`));
+  }
+  if (r.usage.contextTokens && r.usage.contextTokens > 0)
+    tokenParts.push(
+      themeFg("dim", "ctx:") +
+        themeFg("muted", formatTokens(r.usage.contextTokens))
+    );
+
+  const usageStr = tokenParts.length > 0 ? tokenParts.join(sep) : "";
 
   const model = r.model || "unknown";
   const provider = r.provider || "";
@@ -112,7 +162,7 @@ function formatStatusLine(
   const providerStr = provider ? themeFg("muted", `${provider}/`) : "";
 
   const parts = [usageStr, `${providerStr}${modelStr}`].filter(Boolean);
-  return parts.join(themeFg("dim", " · "));
+  return parts.join(sep);
 }
 
 function formatToolCall(
@@ -978,7 +1028,7 @@ export default function (pi: ExtensionAPI) {
             r.stopReason === "error" ||
             r.stopReason === "aborted");
         const icon = isRunning
-          ? theme.fg("warning", "◌")
+          ? theme.fg("warning", getSpinnerFrame())
           : isError
             ? theme.fg("error", "✗")
             : theme.fg("success", "✓");
@@ -987,7 +1037,7 @@ export default function (pi: ExtensionAPI) {
 
         if (expanded) {
           const container = new Container();
-          let header = `${icon} ${theme.fg("toolTitle", theme.bold(r.agent))}${theme.fg("muted", ` (${r.agentSource})`)}`;
+          let header = `${icon} ${theme.fg("toolTitle", theme.bold(r.agent))}`;
           if (isError && r.stopReason)
             header += ` ${theme.fg("error", `[${r.stopReason}]`)}`;
           container.addChild(new Text(header, 0, 0));
@@ -1045,7 +1095,7 @@ export default function (pi: ExtensionAPI) {
           return container;
         }
 
-        let text = `${icon} ${theme.fg("toolTitle", theme.bold(r.agent))}${theme.fg("muted", ` (${r.agentSource})`)}`;
+        let text = `${icon} ${theme.fg("toolTitle", theme.bold(r.agent))}`;
         if (isError && r.stopReason)
           text += ` ${theme.fg("error", `[${r.stopReason}]`)}`;
         if (isError && r.errorMessage)
@@ -1169,11 +1219,11 @@ export default function (pi: ExtensionAPI) {
             if (stepStatus) container.addChild(new Text(stepStatus, 0, 0));
           }
 
-          const usageStr = formatUsageStats(aggregateUsage(details.results));
+          const usageStr = formatUsageStats(aggregateUsage(details.results), theme.fg.bind(theme));
           if (usageStr) {
             container.addChild(new Spacer(1));
             container.addChild(
-              new Text(theme.fg("dim", `Total: ${usageStr}`), 0, 0)
+              new Text(theme.fg("dim", "Total: ") + usageStr, 0, 0)
             );
           }
           return container;
@@ -1196,8 +1246,8 @@ export default function (pi: ExtensionAPI) {
             text += `\n${theme.fg("muted", "(no output)")}`;
           else text += `\n${renderDisplayItems(displayItems, 5)}`;
         }
-        const usageStr = formatUsageStats(aggregateUsage(details.results));
-        if (usageStr) text += `\n\n${theme.fg("dim", `Total: ${usageStr}`)}`;
+        const usageStr = formatUsageStats(aggregateUsage(details.results), theme.fg.bind(theme));
+        if (usageStr) text += `\n\n${theme.fg("dim", "Total: ")}${usageStr}`;
         text += `\n${theme.fg("muted", "(Ctrl+O to expand)")}`;
         return new Text(text, 0, 0);
       }
@@ -1210,7 +1260,7 @@ export default function (pi: ExtensionAPI) {
         const failCount = details.results.filter((r) => r.exitCode > 0).length;
         const isRunning = running > 0;
         const icon = isRunning
-          ? theme.fg("warning", "◌")
+          ? theme.fg("warning", getSpinnerFrame())
           : failCount > 0
             ? theme.fg("warning", "◐")
             : theme.fg("success", "✓");
@@ -1286,11 +1336,11 @@ export default function (pi: ExtensionAPI) {
             if (taskStatus) container.addChild(new Text(taskStatus, 0, 0));
           }
 
-          const usageStr = formatUsageStats(aggregateUsage(details.results));
+          const usageStr = formatUsageStats(aggregateUsage(details.results), theme.fg.bind(theme));
           if (usageStr) {
             container.addChild(new Spacer(1));
             container.addChild(
-              new Text(theme.fg("dim", `Total: ${usageStr}`), 0, 0)
+              new Text(theme.fg("dim", "Total: ") + usageStr, 0, 0)
             );
           }
           return container;
@@ -1301,7 +1351,7 @@ export default function (pi: ExtensionAPI) {
         for (const r of details.results) {
           const rIcon =
             r.exitCode === -1
-              ? theme.fg("warning", "◌")
+              ? theme.fg("warning", getSpinnerFrame())
               : r.exitCode === 0
                 ? theme.fg("success", "✓")
                 : theme.fg("error", "✗");
@@ -1312,8 +1362,8 @@ export default function (pi: ExtensionAPI) {
           else text += `\n${renderDisplayItems(displayItems, 5)}`;
         }
         if (!isRunning) {
-          const usageStr = formatUsageStats(aggregateUsage(details.results));
-          if (usageStr) text += `\n\n${theme.fg("dim", `Total: ${usageStr}`)}`;
+          const usageStr = formatUsageStats(aggregateUsage(details.results), theme.fg.bind(theme));
+          if (usageStr) text += `\n\n${theme.fg("dim", "Total: ")}${usageStr}`;
         }
         if (!expanded) text += `\n${theme.fg("muted", "(Ctrl+O to expand)")}`;
         return new Text(text, 0, 0);
