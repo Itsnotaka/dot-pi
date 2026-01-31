@@ -22,5 +22,5 @@ pnpm install
 
 - `pnpm fmt` - Format code with oxfmt
 - `pnpm lint` - Lint code with oxlint
-- `pnpm check` - Type check with TypeScript
+- `pnpm typecheck` - Type check with TypeScript
 - `pnpm fix` - Format and auto-fix lint issues

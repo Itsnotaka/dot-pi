@@ -80,7 +80,7 @@ const thinkingColorMap: Record<string, string> = {
 function formatStatusLine(
   r: SingleResult,
   themeFg: ThemeFg,
-  themeBold: (text: string) => string
+  _themeBold: (text: string) => string
 ): string {
   const tokenParts: string[] = [];
   if (r.usage.turns)
@@ -366,8 +366,8 @@ async function runSingleAgent(
       contextTokens: 0,
       turns: 0,
     },
-    model: agent.model,
-    provider: undefined,
+    model: agent.model?.includes("/") ? agent.model.split("/").slice(1).join("/") : agent.model,
+    provider: agent.model?.includes("/") ? agent.model.split("/")[0] : undefined,
     thinking: agent.thinking,
     step,
   };

@@ -4,3 +4,4 @@ sessions/
 .DS_Store
 node_modules/
 .cache
+.plans

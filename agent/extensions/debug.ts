@@ -474,8 +474,15 @@ Use this before a new debugging session to remove old log entries.`,
     description:
       "Check if debug mode is currently active and get the debug URL.",
     parameters: Type.Object({}),
-    async execute() {
+    async execute(
+      _toolCallId,
+      _params,
+      _onUpdate,
+      _ctx,
+      _signal
+    ) {
       if (!server || !debugModeActive) {
+        const details: { active: boolean; url?: string } = { active: false };
         return {
           content: [
             {
@@ -483,7 +490,7 @@ Use this before a new debugging session to remove old log entries.`,
               text: "Debug mode is **not active**.\n\nUse debug_start to begin a debugging session.",
             },
           ],
-          details: { active: false },
+          details,
         };
       }
 
@@ -497,9 +504,10 @@ Use this before a new debugging session to remove old log entries.`,
         "Use this URL in your fetch() calls to capture debug data.",
       ].join("\n");
 
+      const details: { active: boolean; url?: string } = { active: true, url };
       return {
         content: [{ type: "text", text }],
-        details: { active: true, url },
+        details,
       };
     },
     renderResult(result, _opts, theme) {
