@@ -9,6 +9,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "devDependencies": {
+    "@anthropic-ai/sandbox-runtime": "latest",
     "@mariozechner/pi-agent-core": "latest",
     "@mariozechner/pi-ai": "latest",
     "@mariozechner/pi-coding-agent": "latest",

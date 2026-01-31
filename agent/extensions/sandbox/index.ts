@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { exec, spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -491,7 +491,7 @@ const guardRules: GuardRule[] = [
 
 const ALLOW_ENTRY_TYPE = "sandbox-guard.allow";
 const DANGEROUSLY_ALLOW_FLAG = "dangerouslyAllowCommands";
-const DANGEROUSLY_ALLOW_PHRASE = "DANGEROUSLY_ALLOW";
+
 
 function normalizeCommand(command: string): string {
 	return command.trim().replace(/\s+/g, " ");
@@ -584,26 +584,21 @@ export default function (pi: ExtensionAPI) {
 
 		const labels = Array.from(new Set(matches.map((m) => m.label)));
 		const tag = labels.join(", ");
-		const needsTypedConfirm = matches.some((m) => m.confirm);
 
 		if (!ctx.hasUI) {
 			return { block: true, reason: `Blocked (no UI): ${tag}. Use --${DANGEROUSLY_ALLOW_FLAG} to bypass.` };
 		}
 
-		if (needsTypedConfirm) {
-			const response = await ctx.ui.input(`⚠️ ${tag}\n${cmd}`, `Type ${DANGEROUSLY_ALLOW_PHRASE} to allow`);
-			if (response !== DANGEROUSLY_ALLOW_PHRASE) {
-				return { block: true, reason: `User rejected command (${tag})` };
-			}
-			allowedCommands.add(normalized);
-			pi.appendEntry(ALLOW_ENTRY_TYPE, { command: normalized });
-			return;
+		if (process.platform === "darwin") {
+			exec("afplay /System/Library/Sounds/Ping.aiff");
 		}
 
 		const allowed = await ctx.ui.confirm(`⚠️ ${tag}`, cmd);
 		if (!allowed) {
 			return { block: true, reason: `User rejected command (${tag})` };
 		}
+		allowedCommands.add(normalized);
+		pi.appendEntry(ALLOW_ENTRY_TYPE, { command: normalized });
 	});
 
 	// Lifecycle
