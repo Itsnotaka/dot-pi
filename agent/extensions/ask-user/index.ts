@@ -5,115 +5,14 @@ import { Type } from "@sinclair/typebox";
 
 const OWN_ANSWER = "Own answer";
 
-type Question = {
-  index: number;
-  question: string;
-  topic: string | null;
-  options: string[];
-};
-
 type Answer = {
   index: number;
-  topic: string | null;
+  topic: string;
   question: string;
   answer: string;
   optionIndex: number | null;
   isCustom: boolean;
 };
-
-function parseQuestionnaire(input: string): {
-  questions: Question[];
-  errors: string[];
-} {
-  const questions: Question[] = [];
-  const errors: string[] = [];
-  let current: Question | null = null;
-
-  const pushCurrent = () => {
-    if (current) questions.push(current);
-    current = null;
-  };
-
-  const lines = input.split(/\r?\n/);
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line) continue;
-
-    const questionMatch = line.match(/^\d+\.\s*\[question\]\s*(.+)$/i);
-    if (questionMatch) {
-      pushCurrent();
-      current = {
-        index: questions.length + 1,
-        question: questionMatch[1].trim(),
-        topic: null,
-        options: [],
-      };
-      continue;
-    }
-
-    const topicMatch = line.match(/^\[topic\]\s*(.+)$/i);
-    if (topicMatch) {
-      if (!current) {
-        errors.push(`Found [topic] before any [question]: ${line}`);
-        continue;
-      }
-      current.topic = topicMatch[1].trim();
-      continue;
-    }
-
-    const optionMatch = line.match(/^\[option\]\s*(.+)$/i);
-    if (optionMatch) {
-      if (!current) {
-        errors.push(`Found [option] before any [question]: ${line}`);
-        continue;
-      }
-      const option = optionMatch[1].trim();
-      if (option) current.options.push(option);
-      continue;
-    }
-
-    errors.push(`Unrecognized line: ${line}`);
-  }
-
-  pushCurrent();
-
-  if (questions.length === 0) {
-    errors.push("No [question] blocks found.");
-  }
-
-  if (questions.length > 4) {
-    errors.push(`Too many questions (${questions.length}). Max is 4.`);
-  }
-
-  for (const q of questions) {
-    const seen = new Set<string>();
-    const cleaned: string[] = [];
-    for (const option of q.options) {
-      const trimmed = option.trim();
-      if (!trimmed) continue;
-      if (trimmed.toLowerCase() === OWN_ANSWER.toLowerCase()) continue;
-      if (seen.has(trimmed)) continue;
-      seen.add(trimmed);
-      cleaned.push(trimmed);
-    }
-    q.options = cleaned;
-    if (!q.topic) {
-      errors.push(`Question ${q.index} is missing a [topic] line.`);
-    }
-    if (q.options.length < 2) {
-      errors.push(
-        `Question ${q.index} needs at least 2 [option] lines: ${q.question}`
-      );
-    }
-    if (q.options.length > 4) {
-      errors.push(
-        `Question ${q.index} has too many [option] lines (${q.options.length}). Max is 4.`
-      );
-    }
-  }
-
-  return { questions, errors };
-}
 
 export default function (pi: ExtensionAPI) {
   pi.registerTool({
@@ -121,12 +20,23 @@ export default function (pi: ExtensionAPI) {
     label: "Ask User",
     description:
       "Ask the user multiple-choice questions for quick clarification. " +
-      "Provide a plain-text questionnaire with numbered questions, [topic], and [option] lines.",
+      "Provide 1-4 questions, each with a short topic label, the question text, and 2-4 options. " +
+      'A "Type your own answer" option is added automatically — do not include catch-all options.',
     parameters: Type.Object({
-      questionnaire: Type.String({
-        description:
-          "Plain-text questionnaire with numbered [question] blocks, [topic], and [option] lines.",
-      }),
+      questions: Type.Array(
+        Type.Object({
+          topic: Type.String({
+            description: "Short label for the question (max 30 chars)",
+          }),
+          question: Type.String({ description: "The full question text" }),
+          options: Type.Array(Type.String({ description: "A choice option" }), {
+            description: "2-4 answer choices",
+            minItems: 2,
+            maxItems: 4,
+          }),
+        }),
+        { description: "1-4 questions to ask the user", minItems: 1, maxItems: 4 },
+      ),
     }),
 
     async execute(_toolCallId, params, _onUpdate, ctx) {
@@ -140,15 +50,34 @@ export default function (pi: ExtensionAPI) {
         };
       }
 
-      const { questionnaire } = params as { questionnaire: string };
-      const { questions, errors } = parseQuestionnaire(questionnaire);
+      const { questions } = params as {
+        questions: { topic: string; question: string; options: string[] }[];
+      };
+
+      const errors: string[] = [];
+      if (questions.length === 0) errors.push("No questions provided.");
+      if (questions.length > 4)
+        errors.push(`Too many questions (${questions.length}). Max is 4.`);
+
+      for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
+        const deduplicated = [...new Set(q.options.filter((o) => o.trim()))];
+        const filtered = deduplicated.filter(
+          (o) => o.toLowerCase() !== OWN_ANSWER.toLowerCase(),
+        );
+        questions[i].options = filtered;
+        if (filtered.length < 2)
+          errors.push(`Question ${i + 1} needs at least 2 options.`);
+        if (filtered.length > 4)
+          errors.push(`Question ${i + 1} has too many options (max 4).`);
+      }
 
       if (errors.length > 0) {
         return {
           content: [
             {
               type: "text",
-              text: `Invalid questionnaire:\n- ${errors.join("\n- ")}`,
+              text: `Invalid questions:\n- ${errors.join("\n- ")}`,
             },
           ],
           details: { ok: false, reason: "invalid_format", errors },
@@ -158,9 +87,13 @@ export default function (pi: ExtensionAPI) {
 
       const answers: Answer[] = [];
 
-      for (const q of questions) {
-        const prompt = q.topic ? `${q.topic}\n${q.question}` : q.question;
-        const choice = await ctx.ui.select(prompt, [...q.options, OWN_ANSWER]);
+      for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
+        const prompt = `${q.topic}\n${q.question}`;
+        const choice = await ctx.ui.select(prompt, [
+          ...q.options,
+          OWN_ANSWER,
+        ]);
 
         if (!choice) {
           return {
@@ -188,7 +121,7 @@ export default function (pi: ExtensionAPI) {
             };
           }
           answers.push({
-            index: q.index,
+            index: i + 1,
             topic: q.topic,
             question: q.question,
             answer: trimmed,
@@ -199,7 +132,7 @@ export default function (pi: ExtensionAPI) {
         }
 
         answers.push({
-          index: q.index,
+          index: i + 1,
           topic: q.topic,
           question: q.question,
           answer: choice,
@@ -208,10 +141,9 @@ export default function (pi: ExtensionAPI) {
         });
       }
 
-      const lines = answers.map((a) => {
-        const topic = a.topic ? `[${a.topic}] ` : "";
-        return `${a.index}. ${topic}${a.question} → ${a.answer}`;
-      });
+      const lines = answers.map(
+        (a) => `${a.index}. [${a.topic}] ${a.question} → ${a.answer}`,
+      );
 
       return {
         content: [{ type: "text", text: lines.join("\n") }],
@@ -236,7 +168,7 @@ export default function (pi: ExtensionAPI) {
         return new Text(
           `${theme.fg("success", "✓")} ${theme.fg("muted", label)}`,
           0,
-          0
+          0,
         );
       }
 
