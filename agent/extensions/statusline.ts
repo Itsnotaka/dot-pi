@@ -62,14 +62,27 @@ export default function (pi: ExtensionAPI) {
           if (usage) {
             const percent = usage.percent;
             let color: "success" | "error" | "warning" = "success";
-            if (percent > 90) color = "error";
-            else if (percent > 75) color = "warning";
+            let hint = "";
+            
+            if (percent > 80) {
+              color = "error";
+              hint = theme.fg("dim", " (consider /handoff)");
+            } else if (percent > 60) {
+              color = "warning";
+              hint = theme.fg("dim", " (consider /handoff)");
+            }
 
-            const formatTokens = (n: number) =>
-              n < 1000 ? `${n}` : `${(n / 1000).toFixed(0)}k`;
+            const formatTokens = (n: number) => {
+              if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+              if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
+              return `${n}`;
+            };
+            
+            const used = Math.floor((usage.contextWindow * percent) / 100);
             const contextStr =
-              theme.fg(color, `${percent.toFixed(0)}%`) +
-              theme.fg("dim", ` of ${formatTokens(usage.contextWindow)}`);
+              theme.fg(color, formatTokens(used)) +
+              theme.fg("dim", ` / ${formatTokens(usage.contextWindow)}`) +
+              hint;
             leftParts.push(contextStr);
           }
 
