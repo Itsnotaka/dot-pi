@@ -45,13 +45,39 @@ export async function getDiagnosticsForFile(
     textDocument: { uri, languageId, version: 1, text },
   });
 
-  await waitForDiagnostics(server, file);
+  let diagnostics: Diagnostic[];
+
+  if (server.pullDiagnostics) {
+    diagnostics = await pullDiagnostics(server, uri);
+  } else {
+    await waitForDiagnostics(server, file);
+    diagnostics = server.diagnostics.get(file) ?? [];
+  }
 
   server.conn.sendNotification("textDocument/didClose", {
     textDocument: { uri },
   });
 
-  return server.diagnostics.get(file) ?? [];
+  return diagnostics;
+}
+
+async function pullDiagnostics(
+  server: LspServer,
+  uri: string
+): Promise<Diagnostic[]> {
+  try {
+    const result = await server.conn.sendRequest(
+      "textDocument/diagnostic",
+      { textDocument: { uri } },
+      DIAGNOSTICS_TIMEOUT_MS
+    );
+    if (result?.kind === "full" && Array.isArray(result.items)) {
+      return result.items;
+    }
+    return [];
+  } catch {
+    return [];
+  }
 }
 
 function waitForDiagnostics(server: LspServer, file: string): Promise<void> {

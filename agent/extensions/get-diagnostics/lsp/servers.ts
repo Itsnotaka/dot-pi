@@ -28,6 +28,7 @@ export interface LspServer {
   diagnostics: Map<string, Diagnostic[]>;
   waiters: Map<string, Array<() => void>>;
   ready: Promise<void>;
+  pullDiagnostics: boolean;
 }
 
 function which(cmd: string): string | null {
@@ -177,21 +178,23 @@ export async function spawnServer(
     }
   };
 
-  if (id === "eslint") {
-    conn.onRequest = async (method, params) => {
-      if (method === "workspace/configuration") {
-        const items = params?.items;
-        if (Array.isArray(items)) {
-          return items.map(() => ESLINT_DEFAULT_CONFIG);
-        }
+  conn.onRequest = async (method, params) => {
+    if (method === "workspace/configuration") {
+      const items = params?.items;
+      if (id === "eslint") {
+        if (Array.isArray(items)) return items.map(() => ESLINT_DEFAULT_CONFIG);
         return [ESLINT_DEFAULT_CONFIG];
       }
-      if (method === "client/registerCapability") return {};
-      return null;
-    };
-  }
+      if (Array.isArray(items)) return items.map(() => ({}));
+      return [{}];
+    }
+    if (method === "client/registerCapability") return {};
+    return null;
+  };
 
   const rootUri = pathToFileURL(root).toString();
+
+  let pullDiagnostics = false;
 
   const ready = conn
     .sendRequest("initialize", {
@@ -201,6 +204,7 @@ export async function spawnServer(
       capabilities: {
         textDocument: {
           publishDiagnostics: { relatedInformation: true },
+          diagnostic: { dynamicRegistration: false },
           synchronization: { didOpen: true, didChange: true, didClose: true },
         },
         workspace: {
@@ -209,11 +213,12 @@ export async function spawnServer(
         },
       },
     })
-    .then(() => {
+    .then((result: any) => {
+      pullDiagnostics = !!result?.capabilities?.diagnosticProvider;
       conn.sendNotification("initialized", {});
     });
 
-  return {
+  const server: LspServer = {
     id,
     language: languageForServer(id),
     root,
@@ -222,7 +227,14 @@ export async function spawnServer(
     diagnostics,
     waiters,
     ready,
+    pullDiagnostics: false,
   };
+
+  ready.then(() => {
+    server.pullDiagnostics = pullDiagnostics;
+  });
+
+  return server;
 }
 
 export async function shutdownServer(server: LspServer): Promise<void> {
