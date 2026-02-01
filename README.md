@@ -1,8 +1,8 @@
 # dot-pi
 
-Personal [pi](https://github.com/mariozechner/pi) configuration — extensions, subagents, skills, themes, and prompts for a terminal-based AI coding agent.
+Personal configuration for [pi](https://github.com/badlogic/pi-mono), a terminal-based AI coding agent by [Mario Zechner](https://github.com/badlogic). This repo contains custom extensions, subagents, skills, themes, and prompts.
 
-This is a dotfiles-style repo meant to be cloned into `~/.pi`. It is **not** an npm package.
+This is a dotfiles-style repo meant to be cloned into `~/.pi`. It is **not** an npm package. You need [pi](https://github.com/badlogic/pi-mono) installed first.
 
 ## Quick Start
 
