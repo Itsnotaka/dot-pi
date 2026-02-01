@@ -38,7 +38,6 @@ agent/
 │   └── worktree.ts          # Git worktree support
 ├── agents/              # Subagent definitions (.md)
 ├── skills/              # Domain-specific knowledge
-│   ├── emil-design-engineering/   # UI/UX design patterns
 │   ├── pi-development/            # Pi extension development reference
 │   ├── turborepo/                 # Monorepo build system
 │   ├── vercel-composition-patterns/ # React composition patterns
