@@ -7,8 +7,8 @@ import {
   executeTool,
   getTextOutput,
   type MockExtensionAPI,
-} from "../test/helpers.ts";
-import initDebug from "./debug.ts";
+} from "../helpers.ts";
+import initDebug from "../../extensions/debug.ts";
 
 describe("debug extension", () => {
   let api: MockExtensionAPI;

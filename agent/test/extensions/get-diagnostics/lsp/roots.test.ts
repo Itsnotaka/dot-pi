@@ -2,7 +2,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { detectLanguage, findRootForLanguage, findTsRoot, findPyRoot } from "./roots.ts";
+import { detectLanguage, findRootForLanguage, findTsRoot, findPyRoot } from "../../../../extensions/get-diagnostics/lsp/roots.ts";
 
 describe("LSP roots", () => {
   let tempDir: string;

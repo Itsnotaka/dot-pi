@@ -1,6 +1,6 @@
 import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createConnection, type JsonRpcConnection } from "./jsonrpc.ts";
+import { createConnection, type JsonRpcConnection } from "../../../../extensions/get-diagnostics/lsp/jsonrpc.ts";
 
 function createMockProcess() {
   const stdin = new PassThrough();

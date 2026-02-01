@@ -4,8 +4,8 @@ import {
   executeTool,
   getTextOutput,
   type MockExtensionAPI,
-} from "../test/helpers.ts";
-import initTasks from "./tasks.ts";
+} from "../helpers.ts";
+import initTasks from "../../extensions/tasks.ts";
 
 describe("tasks extension", () => {
   let api: MockExtensionAPI;

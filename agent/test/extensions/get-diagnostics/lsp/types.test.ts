@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { prettyDiagnostic, Severity, type Diagnostic } from "./types.ts";
+import { prettyDiagnostic, Severity, type Diagnostic } from "../../../../extensions/get-diagnostics/lsp/types.ts";
 
 describe("LSP types", () => {
   describe("Severity", () => {

@@ -3,8 +3,8 @@ import {
   createMockContext,
   createMockExtensionAPI,
   type MockExtensionAPI,
-} from "../test/helpers.ts";
-import initSandbox from "./sandbox.ts";
+} from "../helpers.ts";
+import initSandbox from "../../extensions/sandbox.ts";
 
 describe("sandbox extension", () => {
   let api: MockExtensionAPI;
