@@ -418,10 +418,23 @@ when they are present — they take precedence for their domain.
 
 Available skills are defined in `~/.pi/agent/skills/`.
 
+# Tasks
+
+Use the task_list tool to track work. Prefer task_list over TODO comments in
+code or ad-hoc tracking. When working on multi-step tasks:
+
+- Break work into discrete tasks and add them to the task list.
+- Update task status as you progress (pending → in_progress → completed).
+- Use the task list as the single source of truth for what's done and what
+  remains.
+
+Do not leave TODO comments in code to track pending work — use task_list
+instead.
+
 # Planning
 
 - For complex tasks, create a brief plan in `${dir}/.pi/.plans/` with a
-  task-relevant name.
+  task-relevant name and add the steps to the task list.
 - Make the plan extremely concise. Sacrifice grammar for the sake of concision.
 - At the end of each plan, give me a list of unresolved questions to answer, if
   any.
