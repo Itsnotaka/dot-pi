@@ -197,31 +197,32 @@ function formatToolCall(
           `:${startLine}${endLine ? `-${endLine}` : ""}`
         );
       }
-      return themeFg("muted", "read ") + text;
+      return themeFg("muted", "→ ") + themeFg("muted", "read ") + text;
     }
     case "write": {
       const rawPath = (args.file_path || args.path || "...") as string;
       const filePath = shortenPath(rawPath);
       const content = (args.content || "") as string;
       const lines = content.split("\n").length;
-      let text = themeFg("muted", "write ") + themeFg("accent", filePath);
+      let text = themeFg("muted", "← ") + themeFg("muted", "write ") + themeFg("accent", filePath);
       if (lines > 1) text += themeFg("dim", ` (${lines} lines)`);
       return text;
     }
     case "edit": {
       const rawPath = (args.file_path || args.path || "...") as string;
       return (
-        themeFg("muted", "edit ") + themeFg("accent", shortenPath(rawPath))
+        themeFg("muted", "← ") + themeFg("muted", "edit ") + themeFg("accent", shortenPath(rawPath))
       );
     }
     case "ls": {
       const rawPath = (args.path || ".") as string;
-      return themeFg("muted", "ls ") + themeFg("accent", shortenPath(rawPath));
+      return themeFg("muted", "→ ") + themeFg("muted", "ls ") + themeFg("accent", shortenPath(rawPath));
     }
     case "find": {
       const pattern = (args.pattern || "*") as string;
       const rawPath = (args.path || ".") as string;
       return (
+        themeFg("muted", "✱ ") +
         themeFg("muted", "find ") +
         themeFg("accent", pattern) +
         themeFg("dim", ` in ${shortenPath(rawPath)}`)
@@ -231,6 +232,7 @@ function formatToolCall(
       const pattern = (args.pattern || "") as string;
       const rawPath = (args.path || ".") as string;
       return (
+        themeFg("muted", "✱ ") +
         themeFg("muted", "grep ") +
         themeFg("accent", `/${pattern}/`) +
         themeFg("dim", ` in ${shortenPath(rawPath)}`)
@@ -240,13 +242,13 @@ function formatToolCall(
     case "WebSearch": {
       const query = (args.query as string) || "...";
       const preview = query.length > 60 ? `${query.slice(0, 60)}...` : query;
-      return themeFg("muted", "⌕ ") + themeFg("dim", preview);
+      return themeFg("muted", "◈ ") + themeFg("dim", preview);
     }
     default: {
       const argsStr = JSON.stringify(args);
       const preview =
         argsStr.length > 50 ? `${argsStr.slice(0, 50)}...` : argsStr;
-      return themeFg("accent", toolName) + themeFg("dim", ` ${preview}`);
+      return themeFg("muted", "⚙ ") + themeFg("accent", toolName) + themeFg("dim", ` ${preview}`);
     }
   }
 }
@@ -1018,7 +1020,7 @@ export default function (pi: ExtensionAPI) {
               : item.text.split("\n").slice(0, 3).join("\n");
             text += `${theme.fg("toolOutput", preview)}\n`;
           } else {
-            text += `${theme.fg("muted", "→ ") + formatToolCall(item.name, item.args, theme.fg.bind(theme))}\n`;
+            text += `${formatToolCall(item.name, item.args, theme.fg.bind(theme))}\n`;
           }
         }
         return text.trimEnd();
@@ -1079,8 +1081,7 @@ export default function (pi: ExtensionAPI) {
               if (item.type === "toolCall")
                 container.addChild(
                   new Text(
-                    theme.fg("muted", "→ ") +
-                      formatToolCall(
+                    formatToolCall(
                         item.name,
                         item.args,
                         theme.fg.bind(theme)
@@ -1209,8 +1210,7 @@ export default function (pi: ExtensionAPI) {
                 if (item.type === "toolCall") {
                   container.addChild(
                     new Text(
-                      theme.fg("muted", "→ ") +
-                        formatToolCall(
+                      formatToolCall(
                           item.name,
                           item.args,
                           theme.fg.bind(theme)
@@ -1336,8 +1336,7 @@ export default function (pi: ExtensionAPI) {
               if (item.type === "toolCall") {
                 container.addChild(
                   new Text(
-                    theme.fg("muted", "→ ") +
-                      formatToolCall(
+                    formatToolCall(
                         item.name,
                         item.args,
                         theme.fg.bind(theme)

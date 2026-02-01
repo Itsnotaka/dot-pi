@@ -342,7 +342,7 @@ export default function (pi: ExtensionAPI) {
       if (!expanded) {
         if (!details?.ok) {
           return new Text(
-            `${theme.fg("error", "✗")} ${theme.fg("muted", "Context7 error")}`,
+            `${theme.fg("error", "✗")} ${theme.fg("muted", "◇ Context7 error")}`,
             0,
             0
           );
@@ -350,7 +350,7 @@ export default function (pi: ExtensionAPI) {
         const name = details?.libraryName ?? "unknown";
         const id = details?.libraryId ?? "";
         return new Text(
-          `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "Context7 ")}${theme.fg("accent", name)} ${theme.fg("muted", id)}`,
+          `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "◇ Context7 ")}${theme.fg("accent", name)} ${theme.fg("muted", id)}`,
           0,
           0
         );
@@ -358,8 +358,8 @@ export default function (pi: ExtensionAPI) {
 
       // Expanded: show full docs
       const header = details?.libraryName
-        ? `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "Context7 ")}${theme.fg("accent", details.libraryName)} ${theme.fg("muted", details.libraryId ?? "")}`
-        : `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "Context7")}`;
+        ? `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "◇ Context7 ")}${theme.fg("accent", details.libraryName)} ${theme.fg("muted", details.libraryId ?? "")}`
+        : `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "◇ Context7")}`;
 
       // Truncate displayed output to keep TUI responsive
       const preview =

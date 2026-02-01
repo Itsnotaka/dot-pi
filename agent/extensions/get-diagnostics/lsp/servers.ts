@@ -1,6 +1,10 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "child_process";
+import {
+  execFileSync,
+  spawn,
+  type ChildProcessWithoutNullStreams,
+} from "child_process";
 import { existsSync } from "fs";
-import { join } from "path";
+import { dirname, join, parse } from "path";
 import { pathToFileURL } from "url";
 
 import type { Language } from "./roots.js";
@@ -8,7 +12,15 @@ import type { Diagnostic, PublishDiagnosticsParams } from "./types.js";
 
 import { createConnection, type JsonRpcConnection } from "./jsonrpc.js";
 
+export type DiagnosticsServerId = "tsserver" | "oxlint" | "eslint" | "pyright";
+
+interface Resolved {
+  cmd: string;
+  args: string[];
+}
+
 export interface LspServer {
+  id: DiagnosticsServerId;
   language: Language;
   root: string;
   proc: ChildProcessWithoutNullStreams;
@@ -20,56 +32,127 @@ export interface LspServer {
 
 function which(cmd: string): string | null {
   try {
-    const { execFileSync } = require("child_process");
     return execFileSync("which", [cmd], { encoding: "utf8" }).trim() || null;
   } catch {
     return null;
   }
 }
 
-function resolveTsServer(root: string): { cmd: string; args: string[] } | null {
-  const local = join(
-    root,
-    "node_modules",
-    ".bin",
-    "typescript-language-server"
-  );
-  if (existsSync(local)) return { cmd: local, args: ["--stdio"] };
-  if (which("typescript-language-server"))
-    return { cmd: "typescript-language-server", args: ["--stdio"] };
+function findBinUpward(root: string, bin: string): string | null {
+  let dir = root;
+  const { root: fsRoot } = parse(dir);
+  while (dir !== fsRoot) {
+    const candidate = join(dir, "node_modules", ".bin", bin);
+    if (existsSync(candidate)) return candidate;
+    dir = dirname(dir);
+  }
   return null;
 }
 
-function resolvePyServer(root: string): { cmd: string; args: string[] } | null {
-  const localNpm = join(root, "node_modules", ".bin", "pyright-langserver");
-  if (existsSync(localNpm)) return { cmd: localNpm, args: ["--stdio"] };
-  if (which("pyright-langserver"))
-    return { cmd: "pyright-langserver", args: ["--stdio"] };
+function resolveLocalOrGlobal(root: string, bin: string): string | null {
+  return findBinUpward(root, bin) ?? which(bin);
+}
+
+function resolveTsServer(root: string): Resolved | null {
+  const bin = resolveLocalOrGlobal(root, "typescript-language-server");
+  if (bin) return { cmd: bin, args: ["--stdio"] };
+  const npx = which("npx");
+  if (npx)
+    return {
+      cmd: npx,
+      args: ["--yes", "typescript-language-server", "--stdio"],
+    };
+  return null;
+}
+
+function resolveOxlintServer(root: string): Resolved | null {
+  const oxlint = resolveLocalOrGlobal(root, "oxlint");
+  if (oxlint) return { cmd: oxlint, args: ["--lsp"] };
+
+  const oxcServer = resolveLocalOrGlobal(root, "oxc_language_server");
+  if (oxcServer) return { cmd: oxcServer, args: [] };
+
+  return null;
+}
+
+function resolveEslintServer(root: string): Resolved | null {
+  const bin = resolveLocalOrGlobal(root, "vscode-eslint-language-server");
+  if (bin) return { cmd: bin, args: ["--stdio"] };
+  const npx = which("npx");
+  if (npx)
+    return {
+      cmd: npx,
+      args: [
+        "--yes",
+        "--package=vscode-langservers-extracted",
+        "vscode-eslint-language-server",
+        "--stdio",
+      ],
+    };
+  return null;
+}
+
+function resolvePyrightServer(root: string): Resolved | null {
+  const bin = resolveLocalOrGlobal(root, "pyright-langserver");
+  if (bin) return { cmd: bin, args: ["--stdio"] };
+
+  const basedpyright = resolveLocalOrGlobal(root, "basedpyright-langserver");
+  if (basedpyright) return { cmd: basedpyright, args: ["--stdio"] };
+
   if (which("uv") && existsSync(join(root, "pyproject.toml")))
     return { cmd: "uv", args: ["run", "pyright-langserver", "--stdio"] };
-  if (which("basedpyright-langserver"))
-    return { cmd: "basedpyright-langserver", args: ["--stdio"] };
+
   return null;
 }
 
+const RESOLVERS: Record<DiagnosticsServerId, (root: string) => Resolved | null> = {
+  tsserver: resolveTsServer,
+  oxlint: resolveOxlintServer,
+  eslint: resolveEslintServer,
+  pyright: resolvePyrightServer,
+};
+
 export function resolveServer(
+  id: DiagnosticsServerId,
+  root: string
+): Resolved | null {
+  return RESOLVERS[id](root);
+}
+
+export function serversForLanguage(
   lang: Language,
   root: string
-): { cmd: string; args: string[] } | null {
-  return lang === "typescript" ? resolveTsServer(root) : resolvePyServer(root);
+): DiagnosticsServerId[] {
+  if (lang === "python") return ["pyright"];
+
+  const ids: DiagnosticsServerId[] = ["tsserver"];
+
+  if (resolveOxlintServer(root)) {
+    ids.push("oxlint");
+  } else if (resolveEslintServer(root)) {
+    ids.push("eslint");
+  }
+
+  return ids;
+}
+
+const ESLINT_DEFAULT_CONFIG = {
+  validate: "on",
+  run: "onType",
+  workingDirectory: { mode: "location" },
+};
+
+function languageForServer(id: DiagnosticsServerId): Language {
+  return id === "pyright" ? "python" : "typescript";
 }
 
 export async function spawnServer(
-  lang: Language,
+  id: DiagnosticsServerId,
   root: string
 ): Promise<LspServer> {
-  const resolved = resolveServer(lang, root);
+  const resolved = resolveServer(id, root);
   if (!resolved) {
-    const hint =
-      lang === "typescript"
-        ? "Install: pnpm i -g typescript-language-server typescript"
-        : "Install: uv pip install pyright (or uv add pyright)";
-    throw new Error(`No ${lang} language server found. ${hint}`);
+    throw new Error(`No ${id} language server found for ${root}.`);
   }
 
   const proc = spawn(resolved.cmd, resolved.args, {
@@ -97,6 +180,20 @@ export async function spawnServer(
     }
   };
 
+  if (id === "eslint") {
+    conn.onRequest = async (method, params) => {
+      if (method === "workspace/configuration") {
+        const items = params?.items;
+        if (Array.isArray(items)) {
+          return items.map(() => ESLINT_DEFAULT_CONFIG);
+        }
+        return [ESLINT_DEFAULT_CONFIG];
+      }
+      if (method === "client/registerCapability") return {};
+      return null;
+    };
+  }
+
   const rootUri = pathToFileURL(root).toString();
 
   const ready = conn
@@ -119,7 +216,16 @@ export async function spawnServer(
       conn.sendNotification("initialized", {});
     });
 
-  return { language: lang, root, proc, conn, diagnostics, waiters, ready };
+  return {
+    id,
+    language: languageForServer(id),
+    root,
+    proc,
+    conn,
+    diagnostics,
+    waiters,
+    ready,
+  };
 }
 
 export async function shutdownServer(server: LspServer): Promise<void> {

@@ -1,17 +1,27 @@
 /**
  * LSP diagnostics tool — on-demand typecheck/syntax check.
+ *
+ * Supports multiple LSP servers per file:
+ *   JS/TS: tsserver + oxlint + eslint
+ *   Python: pyright
  */
 
-import { StringEnum } from "@mariozechner/pi-ai";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { Type } from "@sinclair/typebox";
 
+import { StringEnum } from "@mariozechner/pi-ai";
+import { Type } from "@sinclair/typebox";
 import { isAbsolute, resolve } from "path";
 
 import { getDiagnosticsForFile } from "./lsp/lspClient.js";
 import { detectLanguage, findRootForLanguage } from "./lsp/roots.js";
-import { shutdownServer, spawnServer, type LspServer } from "./lsp/servers.js";
-import { prettyDiagnostic } from "./lsp/types.js";
+import {
+  serversForLanguage,
+  shutdownServer,
+  spawnServer,
+  type DiagnosticsServerId,
+  type LspServer,
+} from "./lsp/servers.js";
+import { prettyDiagnostic, type Diagnostic } from "./lsp/types.js";
 
 const MAX_DIAG_LENGTH = 4000;
 
@@ -35,12 +45,7 @@ const GetDiagnosisParams = Type.Object({
   ),
 });
 
-type SeverityFilter =
-  | "error"
-  | "warning"
-  | "info"
-  | "hint"
-  | "all";
+type SeverityFilter = "error" | "warning" | "info" | "hint" | "all";
 
 const SEVERITY_LEVELS: Record<Exclude<SeverityFilter, "all">, number> = {
   error: 1,
@@ -54,17 +59,17 @@ export default function (pi: ExtensionAPI) {
   const broken = new Set<string>();
 
   async function getOrSpawnServer(
-    lang: "typescript" | "python",
+    id: DiagnosticsServerId,
     root: string
   ): Promise<LspServer | null> {
-    const key = `${lang}:${root}`;
+    const key = `${id}:${root}`;
     if (broken.has(key)) return null;
 
     let server = servers.get(key);
     if (server) return server;
 
     try {
-      server = await spawnServer(lang, root);
+      server = await spawnServer(id, root);
     } catch {
       broken.add(key);
       return null;
@@ -73,6 +78,38 @@ export default function (pi: ExtensionAPI) {
     servers.set(key, server);
     server.proc.on("exit", () => servers.delete(key));
     return server;
+  }
+
+  async function getAllDiagnostics(
+    abs: string,
+    root: string,
+    serverIds: DiagnosticsServerId[]
+  ): Promise<{ diagnostics: Diagnostic[]; activeServers: string[] }> {
+    const spawnResults = await Promise.all(
+      serverIds.map((id) => getOrSpawnServer(id, root))
+    );
+    const active = spawnResults.filter((s): s is LspServer => s !== null);
+
+    if (active.length === 0) {
+      return { diagnostics: [], activeServers: [] };
+    }
+
+    const settled = await Promise.allSettled(
+      active.map((s) =>
+        getDiagnosticsForFile(s, abs).then((diags) =>
+          diags.map((d) => ({ ...d, source: d.source ?? s.id }))
+        )
+      )
+    );
+
+    const diagnostics = settled.flatMap((r) =>
+      r.status === "fulfilled" ? r.value : []
+    );
+
+    return {
+      diagnostics,
+      activeServers: active.map((s) => s.id),
+    };
   }
 
   pi.registerTool({
@@ -106,73 +143,79 @@ export default function (pi: ExtensionAPI) {
       }
 
       const root = findRootForLanguage(abs, lang) ?? ctx.cwd;
-      const server = await getOrSpawnServer(lang, root);
-      if (!server) {
+      const serverIds = serversForLanguage(lang, root);
+      const { diagnostics: allDiags, activeServers } = await getAllDiagnostics(
+        abs,
+        root,
+        serverIds
+      );
+
+      if (activeServers.length === 0) {
         return {
           content: [
             {
               type: "text",
-              text: `No ${lang} language server available for ${root}.`,
+              text: `No language servers available for ${abs} (tried: ${serverIds.join(", ")}).`,
             },
           ],
-          details: { ok: false, reason: "no_server", path: abs, root, lang },
+          details: {
+            ok: false,
+            reason: "no_server",
+            path: abs,
+            root,
+            lang,
+            tried: serverIds,
+          },
           isError: true,
         };
       }
 
-      try {
-        const diags = await getDiagnosticsForFile(server, abs);
-        const filter = severity ?? "error";
-        const filtered =
-          filter === "all"
-            ? diags
-            : diags.filter((d) => (d.severity ?? 1) === SEVERITY_LEVELS[filter]);
+      const filter = severity ?? "error";
+      const filtered =
+        filter === "all"
+          ? allDiags
+          : allDiags.filter(
+              (d) => (d.severity ?? 1) === SEVERITY_LEVELS[filter]
+            );
 
-        if (filtered.length === 0) {
-          return {
-            content: [{ type: "text", text: `No ${filter} diagnostics.` }],
-            details: {
-              ok: true,
-              path: abs,
-              root,
-              lang,
-              severity: filter,
-              count: 0,
-            },
-          };
-        }
-
-        let diagText = filtered.map((d) => prettyDiagnostic(abs, d)).join("\n");
-        const limit = max_chars ?? MAX_DIAG_LENGTH;
-        if (diagText.length > limit) {
-          diagText = diagText.slice(0, limit) + "\n... (truncated)";
-        }
-
+      if (filtered.length === 0) {
         return {
-          content: [
-            {
-              type: "text",
-              text: `Diagnostics (${filtered.length}) for ${abs}:\n${diagText}`,
-            },
-          ],
+          content: [{ type: "text", text: `No ${filter} diagnostics.` }],
           details: {
             ok: true,
             path: abs,
             root,
             lang,
             severity: filter,
-            count: filtered.length,
+            count: 0,
+            servers: activeServers,
           },
         };
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to run diagnostics";
-        return {
-          content: [{ type: "text", text: message }],
-          details: { ok: false, reason: "diagnostics_failed", path: abs },
-          isError: true,
-        };
       }
+
+      let diagText = filtered.map((d) => prettyDiagnostic(abs, d)).join("\n");
+      const limit = max_chars ?? MAX_DIAG_LENGTH;
+      if (diagText.length > limit) {
+        diagText = diagText.slice(0, limit) + "\n... (truncated)";
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Diagnostics (${filtered.length}) for ${abs}:\n${diagText}`,
+          },
+        ],
+        details: {
+          ok: true,
+          path: abs,
+          root,
+          lang,
+          severity: filter,
+          count: filtered.length,
+          servers: activeServers,
+        },
+      };
     },
   });
 

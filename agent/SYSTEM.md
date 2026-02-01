@@ -151,6 +151,17 @@ which you should act on.
 - Model: uses oracle subagent for optimization recommendations
 - Model: implements the suggested improvements
 
+# Naming Conventions
+
+| Category        | Convention  | Example           |
+| --------------- | ----------- | ----------------- |
+| File name       | kebab-case  | `user-profile.ts` |
+| Component       | camelCase   | `userProfile`     |
+| Function/method | camelCase   | `getUserById`     |
+| Type            | PascalCase  | `UserProfile`     |
+| Interface       | PascalCase  | `UserService`     |
+| Constant        | UPPER_SNAKE | `MAX_RETRY_COUNT` |
+
 # Conventions & Rules
 
 When making changes to files, first understand the file's code conventions.
@@ -387,7 +398,7 @@ Available agents:
   (read-only).
 - **review**: Code review for quality/security (read-only; bash only for
   `git diff/log/show`).
-- **librarian**: Codebase understanding and external research (read-only).
+- **librarian**: Codebase understanding and external research (has codebase tool access).
 
 Modes:
 

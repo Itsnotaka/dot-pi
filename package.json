@@ -19,6 +19,7 @@
     "@typescript/native-preview": "latest",
     "oxfmt": "latest",
     "oxlint": "latest",
-    "oxlint-tsgolint": "latest"
+    "oxlint-tsgolint": "latest",
+    "typescript": "^5.9.3"
   }
 }

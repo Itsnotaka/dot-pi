@@ -1,11 +1,13 @@
 import type { ChildProcessWithoutNullStreams } from "child_process";
 
 export type NotificationHandler = (method: string, params: any) => void;
+export type RequestHandler = (method: string, params: any) => Promise<unknown>;
 
 export interface JsonRpcConnection {
   sendRequest(method: string, params: any, timeoutMs?: number): Promise<any>;
   sendNotification(method: string, params: any): void;
   onNotification: NotificationHandler | null;
+  onRequest: RequestHandler | null;
   dispose(): void;
 }
 
@@ -22,6 +24,7 @@ export function createConnection(
     }
   >();
   let notificationHandler: NotificationHandler | null = null;
+  let requestHandler: RequestHandler | null = null;
   let buffer = Buffer.alloc(0);
 
   function send(msg: unknown) {
@@ -52,12 +55,12 @@ export function createConnection(
       buffer = buffer.subarray(bodyStart + contentLen);
 
       try {
-        handleMessage(JSON.parse(body));
+        void handleMessage(JSON.parse(body));
       } catch {}
     }
   }
 
-  function handleMessage(msg: any) {
+  async function handleMessage(msg: any) {
     if ("id" in msg && "result" in msg) {
       const p = pending.get(msg.id);
       if (p) {
@@ -73,7 +76,16 @@ export function createConnection(
         p.reject(new Error(msg.error?.message ?? "LSP error"));
       }
     } else if ("id" in msg && "method" in msg) {
-      send({ jsonrpc: "2.0", id: msg.id, result: null });
+      if (requestHandler) {
+        try {
+          const result = await requestHandler(msg.method, msg.params);
+          send({ jsonrpc: "2.0", id: msg.id, result: result ?? null });
+        } catch {
+          send({ jsonrpc: "2.0", id: msg.id, result: null });
+        }
+      } else {
+        send({ jsonrpc: "2.0", id: msg.id, result: null });
+      }
     } else if ("method" in msg && !("id" in msg)) {
       notificationHandler?.(msg.method, msg.params);
     }
@@ -106,6 +118,12 @@ export function createConnection(
     },
     get onNotification() {
       return notificationHandler;
+    },
+    set onRequest(handler: RequestHandler | null) {
+      requestHandler = handler;
+    },
+    get onRequest() {
+      return requestHandler;
     },
     dispose() {
       for (const [, p] of pending) {

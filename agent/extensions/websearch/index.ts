@@ -82,7 +82,7 @@ function formatResultLine(result: SearchResult, theme: Theme): string {
   const parts = [
     theme.fg("success", "✓"),
     " ",
-    theme.fg("toolTitle", "Web Page "),
+    theme.fg("toolTitle", "% "),
     theme.fg("accent", result.url),
   ];
   if (desc) parts.push(" ", theme.fg("muted", desc));
@@ -456,12 +456,12 @@ export default function (pi: ExtensionAPI) {
           } catch {}
           const label = title ? shorten(title, 48) : hostname;
           return new Text(
-            `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "Web Fetch")} ${theme.fg("accent", hostname)}${label && label !== hostname ? ` ${theme.fg("muted", label)}` : ""}`,
+            `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "% Web Fetch")} ${theme.fg("accent", hostname)}${label && label !== hostname ? ` ${theme.fg("muted", label)}` : ""}`,
             0,
             0
           );
         }
-        const header = `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "Web Fetch ")}${theme.fg("accent", url)}`;
+        const header = `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "% Web Fetch ")}${theme.fg("accent", url)}`;
         const bodyPreview = shorten(
           raw.split("\n").slice(2).join("\n").trim(),
           500
@@ -489,7 +489,7 @@ export default function (pi: ExtensionAPI) {
           })
           .filter(Boolean);
         const uniqueHosts = [...new Set(urls)].slice(0, 4);
-        let text = `${theme.fg("success", "✓")} ${theme.fg("muted", `${count} results`)}`;
+        let text = `${theme.fg("success", "✓")} ${theme.fg("muted", `◈ ${count} results`)}`;
         if (uniqueHosts.length > 0) {
           text += theme.fg("dim", ` · ${uniqueHosts.join(", ")}`);
         }
@@ -507,8 +507,8 @@ export default function (pi: ExtensionAPI) {
       });
 
       const header = details?.count
-        ? `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "Web Search ")}${theme.fg("muted", `(${details.count})`)}`
-        : `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "Web Search")}`;
+        ? `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "◈ Web Search ")}${theme.fg("muted", `(${details.count})`)}`
+        : `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "◈ Web Search")}`;
       const rendered = [header, ...lines].join("\n");
       return new Text(rendered, 0, 0);
     },

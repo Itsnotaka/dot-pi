@@ -42,14 +42,15 @@ Guidelines:
 You should use all available tools to thoroughly explore the codebase before
 answering. Use tools in parallel whenever possible for efficiency.
 
-When you need to explore an external GitHub repository, ALWAYS use the `codebase`
-tool to clone it — NEVER use `git clone` or `/tmp` directories manually. The
-codebase tool creates managed shallow clones at `.pi/codebases/<id>` that you
-can then explore with read, grep, and find. Use the `path` parameter for
-sparse checkout when you only need specific subdirectories of large repos.
+When you need to explore an external GitHub repository, ALWAYS use the
+`codebase` tool to clone it — NEVER use `git clone` or `/tmp` directories
+manually. The codebase tool creates managed shallow clones at
+`.pi/codebases/<id>` that you can then explore with read, grep, and find. Use
+the `path` parameter for sparse checkout when you only need specific
+subdirectories of large repos.
 
-After you're done exploring a cloned repo, destroy it with `codebase(action: "destroy")`
-to clean up.
+After you're done exploring a cloned repo, destroy it with
+`codebase(action: "destroy")` to clean up.
 
 ## Communication
 

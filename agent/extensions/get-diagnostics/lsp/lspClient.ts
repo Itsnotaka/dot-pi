@@ -17,7 +17,7 @@ const LANG_IDS: Record<string, string> = {
   ".pyi": "python",
 };
 
-const DIAGNOSTICS_DEBOUNCE_MS = 150;
+const DIAGNOSTICS_DEBOUNCE_MS = 50;
 const DIAGNOSTICS_TIMEOUT_MS = 5000;
 
 function getLanguageId(file: string): string {

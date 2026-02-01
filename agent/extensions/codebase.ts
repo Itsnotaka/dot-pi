@@ -35,9 +35,12 @@ import {
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+import { createHash } from "node:crypto";
+
 const CLONE_ROOT = join(homedir(), "Library", "Caches", "pi", "codebases");
 const MARKER_FILE = ".codebase.json";
 const STALE_TTL_MS = 24 * 60 * 60 * 1000;
+const REUSE_TTL_MS = 10 * 60 * 1000;
 const README_PREVIEW_LINES = 40;
 
 const GIT_ENV = {
@@ -53,6 +56,53 @@ interface CloneInfo {
   branch: string;
   sparsePaths?: string[];
   createdAt: number;
+  cacheKey?: string;
+}
+
+function computeCacheKey(
+  repoUrl: string,
+  branch: string,
+  sparsePaths?: string[]
+): string {
+  const normalized = repoUrl.replace(/\.git$/, "").toLowerCase();
+  const sparse = sparsePaths ? [...sparsePaths].sort().join("|") : "";
+  const raw = `${normalized}::${branch}::${sparse}`;
+  return createHash("sha256").update(raw).digest("hex").slice(0, 16);
+}
+
+function findCachedClone(
+  cacheKey: string,
+  now: number
+): CloneInfo | null {
+  if (!existsSync(CLONE_ROOT)) return null;
+  for (const entry of readdirSync(CLONE_ROOT)) {
+    const dir = join(CLONE_ROOT, entry);
+    try {
+      if (!statSync(dir).isDirectory()) continue;
+      const marker = readMarker(dir);
+      if (!marker) continue;
+      if (marker.cacheKey !== cacheKey) continue;
+      if (now - marker.createdAt > REUSE_TTL_MS) continue;
+      return marker;
+    } catch {}
+  }
+  return null;
+}
+
+function reuseClone(
+  cached: CloneInfo,
+  targetSymlinkDir: string
+): CloneInfo {
+  const id = generateId();
+  mkdirSync(targetSymlinkDir, { recursive: true });
+  const symlinkPath = join(targetSymlinkDir, id);
+  symlinkSync(cached.clonePath, symlinkPath);
+
+  return {
+    ...cached,
+    id,
+    symlinkPath,
+  };
 }
 
 type GitErrorKind =
@@ -182,6 +232,7 @@ function cloneRepo(
   const symlinkPath = join(symlinkDir, id);
   symlinkSync(clonePath, symlinkPath);
 
+  const cacheKey = computeCacheKey(repoUrl, branch, sparsePaths);
   const info: CloneInfo = {
     id,
     clonePath,
@@ -190,6 +241,7 @@ function cloneRepo(
     branch,
     sparsePaths,
     createdAt: Date.now(),
+    cacheKey,
   };
   writeMarker(info);
   return info;
@@ -393,6 +445,45 @@ export default function (pi: ExtensionAPI) {
                 .filter(Boolean)
             : undefined;
 
+          const eagerCacheKey = branch
+            ? computeCacheKey(repoUrl, branch, sparsePaths)
+            : null;
+          if (eagerCacheKey) {
+            const cached = findCachedClone(eagerCacheKey, Date.now());
+            if (cached) {
+              const info = reuseClone(cached, symlinkDir());
+              activeClones.set(info.id, info);
+              const context = getInitialContext(info.clonePath, sparsePaths);
+              const relativePath = `.pi/codebases/${info.id}`;
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: [
+                      `Cloned: ${info.id}`,
+                      `Repo: ${repoUrl}`,
+                      `Branch: ${branch}`,
+                      `Path: ${relativePath}`,
+                      "",
+                      context,
+                      "",
+                      `Use read, grep, find on "${relativePath}" to explore the source.`,
+                    ].join("\n"),
+                  },
+                ],
+                details: {
+                  id: info.id,
+                  path: relativePath,
+                  absolutePath: info.clonePath,
+                  repo: repoUrl,
+                  branch: branch!,
+                  sparsePaths,
+                  cached: true,
+                },
+              };
+            }
+          }
+
           onUpdate?.({
             content: [
               {
@@ -427,6 +518,45 @@ export default function (pi: ExtensionAPI) {
               ],
               details: {},
             });
+
+            const lateCacheKey = computeCacheKey(
+              repoUrl,
+              resolvedBranch,
+              sparsePaths
+            );
+            const cached = findCachedClone(lateCacheKey, Date.now());
+            if (cached) {
+              const info = reuseClone(cached, symlinkDir());
+              activeClones.set(info.id, info);
+              const context = getInitialContext(info.clonePath, sparsePaths);
+              const relativePath = `.pi/codebases/${info.id}`;
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: [
+                      `Cloned: ${info.id}`,
+                      `Repo: ${repoUrl}`,
+                      `Branch: ${resolvedBranch}`,
+                      `Path: ${relativePath}`,
+                      "",
+                      context,
+                      "",
+                      `Use read, grep, find on "${relativePath}" to explore the source.`,
+                    ].join("\n"),
+                  },
+                ],
+                details: {
+                  id: info.id,
+                  path: relativePath,
+                  absolutePath: info.clonePath,
+                  repo: repoUrl,
+                  branch: resolvedBranch,
+                  sparsePaths,
+                  cached: true,
+                },
+              };
+            }
           }
 
           try {

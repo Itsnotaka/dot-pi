@@ -2,12 +2,13 @@
  * Task List Extension - Manage tasks with simple status tracking.
  */
 
-import { StringEnum } from "@mariozechner/pi-ai";
 import type {
   ExtensionAPI,
   ExtensionContext,
   Theme,
 } from "@mariozechner/pi-coding-agent";
+
+import { StringEnum } from "@mariozechner/pi-ai";
 import { matchesKey, Text, truncateToWidth } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 
@@ -36,8 +37,12 @@ const TaskStatusSchema = StringEnum(
 
 const TaskParams = Type.Object({
   action: StringEnum(["list", "add", "update", "remove", "clear"] as const),
-  text: Type.Optional(Type.String({ description: "Task text (for add/update)" })),
-  id: Type.Optional(Type.Number({ description: "Task ID (for update/remove)" })),
+  text: Type.Optional(
+    Type.String({ description: "Task text (for add/update)" })
+  ),
+  id: Type.Optional(
+    Type.Number({ description: "Task ID (for update/remove)" })
+  ),
   status: Type.Optional(TaskStatusSchema),
 });
 
@@ -98,9 +103,12 @@ class TaskListComponent {
         )
       );
     } else {
-      const completed = this.tasks.filter((t) => t.status === "completed").length;
-      const inProgress = this.tasks.filter((t) => t.status === "in_progress")
-        .length;
+      const completed = this.tasks.filter(
+        (t) => t.status === "completed"
+      ).length;
+      const inProgress = this.tasks.filter(
+        (t) => t.status === "in_progress"
+      ).length;
       const total = this.tasks.length;
       lines.push(
         truncateToWidth(
@@ -131,14 +139,14 @@ class TaskListComponent {
             : task.status === "completed"
               ? th.fg("success", "completed")
               : th.fg("muted", "pending");
-        lines.push(
-          truncateToWidth(`  ${icon} ${id} ${text} ${status}`, width)
-        );
+        lines.push(truncateToWidth(`  ${icon} ${id} ${text} ${status}`, width));
       }
     }
 
     lines.push("");
-    lines.push(truncateToWidth(`  ${th.fg("dim", "Press Escape to close")}`, width));
+    lines.push(
+      truncateToWidth(`  ${th.fg("dim", "Press Escape to close")}`, width)
+    );
     lines.push("");
 
     this.cachedWidth = width;
@@ -204,7 +212,11 @@ export default function (pi: ExtensionAPI) {
                   : "No tasks",
               },
             ],
-            details: { action: "list", tasks: [...tasks], nextId } as TaskDetails,
+            details: {
+              action: "list",
+              tasks: [...tasks],
+              nextId,
+            } as TaskDetails,
           };
 
         case "add": {
@@ -229,14 +241,20 @@ export default function (pi: ExtensionAPI) {
                 text: `Added task #${newTask.id}: ${newTask.text} (${STATUS_LABELS[newTask.status]})`,
               },
             ],
-            details: { action: "add", tasks: [...tasks], nextId } as TaskDetails,
+            details: {
+              action: "add",
+              tasks: [...tasks],
+              nextId,
+            } as TaskDetails,
           };
         }
 
         case "update": {
           if (params.id === undefined) {
             return {
-              content: [{ type: "text", text: "Error: id required for update" }],
+              content: [
+                { type: "text", text: "Error: id required for update" },
+              ],
               details: {
                 action: "update",
                 tasks: [...tasks],
@@ -248,9 +266,7 @@ export default function (pi: ExtensionAPI) {
           const task = tasks.find((t) => t.id === params.id);
           if (!task) {
             return {
-              content: [
-                { type: "text", text: `Task #${params.id} not found` },
-              ],
+              content: [{ type: "text", text: `Task #${params.id} not found` }],
               details: {
                 action: "update",
                 tasks: [...tasks],
@@ -284,14 +300,20 @@ export default function (pi: ExtensionAPI) {
                 text: `Updated task #${task.id}: ${task.text} (${STATUS_LABELS[task.status]})`,
               },
             ],
-            details: { action: "update", tasks: [...tasks], nextId } as TaskDetails,
+            details: {
+              action: "update",
+              tasks: [...tasks],
+              nextId,
+            } as TaskDetails,
           };
         }
 
         case "remove": {
           if (params.id === undefined) {
             return {
-              content: [{ type: "text", text: "Error: id required for remove" }],
+              content: [
+                { type: "text", text: "Error: id required for remove" },
+              ],
               details: {
                 action: "remove",
                 tasks: [...tasks],
@@ -303,9 +325,7 @@ export default function (pi: ExtensionAPI) {
           const index = tasks.findIndex((t) => t.id === params.id);
           if (index === -1) {
             return {
-              content: [
-                { type: "text", text: `Task #${params.id} not found` },
-              ],
+              content: [{ type: "text", text: `Task #${params.id} not found` }],
               details: {
                 action: "remove",
                 tasks: [...tasks],
@@ -322,7 +342,11 @@ export default function (pi: ExtensionAPI) {
                 text: `Removed task #${removed.id}: ${removed.text}`,
               },
             ],
-            details: { action: "remove", tasks: [...tasks], nextId } as TaskDetails,
+            details: {
+              action: "remove",
+              tasks: [...tasks],
+              nextId,
+            } as TaskDetails,
           };
         }
 
@@ -352,9 +376,12 @@ export default function (pi: ExtensionAPI) {
     },
 
     renderCall(args, theme) {
-      let text = theme.fg("toolTitle", theme.bold("task_list ")) + theme.fg("muted", args.action);
+      let text =
+        theme.fg("toolTitle", theme.bold("task_list ")) +
+        theme.fg("muted", args.action);
       if (args.text) text += ` ${theme.fg("dim", `"${args.text}"`)}`;
-      if (args.id !== undefined) text += ` ${theme.fg("accent", `#${args.id}`)}`;
+      if (args.id !== undefined)
+        text += ` ${theme.fg("accent", `#${args.id}`)}`;
       if (args.status) text += ` ${theme.fg("muted", `(${args.status})`)}`;
       return new Text(text, 0, 0);
     },
@@ -420,17 +447,29 @@ export default function (pi: ExtensionAPI) {
         case "update": {
           const text = result.content[0];
           const msg = text?.type === "text" ? text.text : "";
-          return new Text(theme.fg("success", "✓ ") + theme.fg("muted", msg), 0, 0);
+          return new Text(
+            theme.fg("success", "✓ ") + theme.fg("muted", msg),
+            0,
+            0
+          );
         }
 
         case "remove": {
           const text = result.content[0];
           const msg = text?.type === "text" ? text.text : "";
-          return new Text(theme.fg("success", "✓ ") + theme.fg("muted", msg), 0, 0);
+          return new Text(
+            theme.fg("success", "✓ ") + theme.fg("muted", msg),
+            0,
+            0
+          );
         }
 
         case "clear":
-          return new Text(theme.fg("success", "✓ ") + theme.fg("muted", "Cleared all tasks"), 0, 0);
+          return new Text(
+            theme.fg("success", "✓ ") + theme.fg("muted", "Cleared all tasks"),
+            0,
+            0
+          );
       }
     },
   });
