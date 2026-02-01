@@ -261,7 +261,7 @@ async function fetchUrl(
 
 export default function (pi: ExtensionAPI) {
   pi.registerTool({
-    name: "WebSearch",
+    name: "websearch",
     label: "Web Search",
     description:
       "Search the web or fetch a URL. " +
