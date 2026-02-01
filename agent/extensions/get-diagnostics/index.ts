@@ -3,7 +3,7 @@
  *
  * Supports multiple LSP servers per file:
  *   JS/TS: tsserver + oxlint + eslint
- *   Python: pyright
+ *   Python: ty (astral-sh/ty)
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";

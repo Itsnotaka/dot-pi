@@ -48,7 +48,7 @@ function hasAnyFile(cwd: string, names: string[]): boolean {
 
 export function detectFormatter(cwd: string): ToolCmd | null {
   if (hasAnyFile(cwd, [".oxfmtrc.json", ".oxfmtrc.jsonc"])) {
-    return { cmd: "npx", args: ["oxfmt"] };
+    return { cmd: "pnpm dlx", args: ["oxfmt"] };
   }
   if (
     hasAnyFile(cwd, [
@@ -64,7 +64,7 @@ export function detectFormatter(cwd: string): ToolCmd | null {
       "prettier.config.mjs",
     ])
   ) {
-    return { cmd: "npx", args: ["prettier", "--write"] };
+    return { cmd: "pnpm dlx", args: ["prettier", "--write"] };
   }
   return null;
 }

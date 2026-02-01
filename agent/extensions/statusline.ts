@@ -77,11 +77,10 @@ export default function (pi: ExtensionAPI) {
               if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
               return `${n}`;
             };
-            
-            const used = Math.floor((usage.contextWindow * percent) / 100);
+
             const contextStr =
-              theme.fg(color, formatTokens(used)) +
-              theme.fg("dim", ` / ${formatTokens(usage.contextWindow)}`) +
+              theme.fg(color, `${percent.toFixed(0)}%`) +
+              theme.fg("dim", ` of ${formatTokens(usage.contextWindow)}`) +
               hint;
             leftParts.push(contextStr);
           }

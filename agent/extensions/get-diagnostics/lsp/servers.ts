@@ -12,7 +12,7 @@ import type { Diagnostic, PublishDiagnosticsParams } from "./types.js";
 
 import { createConnection, type JsonRpcConnection } from "./jsonrpc.js";
 
-export type DiagnosticsServerId = "tsserver" | "oxlint" | "eslint" | "pyright";
+export type DiagnosticsServerId = "tsserver" | "oxlint" | "eslint" | "ty";
 
 interface Resolved {
   cmd: string;
@@ -92,15 +92,12 @@ function resolveEslintServer(root: string): Resolved | null {
   return null;
 }
 
-function resolvePyrightServer(root: string): Resolved | null {
-  const bin = resolveLocalOrGlobal(root, "pyright-langserver");
-  if (bin) return { cmd: bin, args: ["--stdio"] };
+function resolveTyServer(_root: string): Resolved | null {
+  const bin = which("ty");
+  if (bin) return { cmd: bin, args: ["server"] };
 
-  const basedpyright = resolveLocalOrGlobal(root, "basedpyright-langserver");
-  if (basedpyright) return { cmd: basedpyright, args: ["--stdio"] };
-
-  if (which("uv") && existsSync(join(root, "pyproject.toml")))
-    return { cmd: "uv", args: ["run", "pyright-langserver", "--stdio"] };
+  const uvx = which("uvx");
+  if (uvx) return { cmd: uvx, args: ["ty", "server"] };
 
   return null;
 }
@@ -109,7 +106,7 @@ const RESOLVERS: Record<DiagnosticsServerId, (root: string) => Resolved | null> 
   tsserver: resolveTsServer,
   oxlint: resolveOxlintServer,
   eslint: resolveEslintServer,
-  pyright: resolvePyrightServer,
+  ty: resolveTyServer,
 };
 
 export function resolveServer(
@@ -123,7 +120,7 @@ export function serversForLanguage(
   lang: Language,
   root: string
 ): DiagnosticsServerId[] {
-  if (lang === "python") return ["pyright"];
+  if (lang === "python") return ["ty"];
 
   const ids: DiagnosticsServerId[] = ["tsserver"];
 
@@ -143,7 +140,7 @@ const ESLINT_DEFAULT_CONFIG = {
 };
 
 function languageForServer(id: DiagnosticsServerId): Language {
-  return id === "pyright" ? "python" : "typescript";
+  return id === "ty" ? "python" : "typescript";
 }
 
 export async function spawnServer(

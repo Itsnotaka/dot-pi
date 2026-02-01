@@ -13,11 +13,11 @@ const TS_MARKERS = [
 
 const PY_MARKERS = [
   "pyproject.toml",
+  "ty.toml",
   "setup.py",
   "setup.cfg",
   "requirements.txt",
   "Pipfile",
-  "pyrightconfig.json",
 ];
 
 function findRoot(file: string, markers: string[]): string | null {
