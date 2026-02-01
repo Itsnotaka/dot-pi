@@ -23,6 +23,7 @@ pnpm install
 - `pnpm fmt` - Format code with oxfmt
 - `pnpm lint` - Lint code with oxlint
 - `pnpm typecheck` - Type check with TypeScript
+- `pnpm test` - Run tests with vitest
 - `pnpm fix` - Format and auto-fix lint issues
 
 ## Python
