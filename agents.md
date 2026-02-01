@@ -24,3 +24,7 @@ pnpm install
 - `pnpm lint` - Lint code with oxlint
 - `pnpm typecheck` - Type check with TypeScript
 - `pnpm fix` - Format and auto-fix lint issues
+
+## Python
+
+When using Python, default to `uv` for package management and running scripts.
