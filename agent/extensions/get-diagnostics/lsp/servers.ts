@@ -230,7 +230,7 @@ export async function spawnServer(
     pullDiagnostics: false,
   };
 
-  ready.then(() => {
+  void ready.then(() => {
     server.pullDiagnostics = pullDiagnostics;
   });
 

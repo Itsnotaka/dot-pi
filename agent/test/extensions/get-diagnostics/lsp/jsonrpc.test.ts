@@ -94,8 +94,8 @@ describe("JSON-RPC connection", () => {
       const chunks: Buffer[] = [];
       proc.stdin.on("data", (chunk: Buffer) => chunks.push(chunk));
 
-      conn.sendRequest("method1", {});
-      conn.sendRequest("method2", {});
+      void conn.sendRequest("method1", {});
+      void conn.sendRequest("method2", {});
 
       await new Promise((r) => setTimeout(r, 10));
 
@@ -144,7 +144,7 @@ describe("JSON-RPC connection", () => {
 
   describe("onRequest", () => {
     it("handles server-initiated requests and responds", async () => {
-      conn.onRequest = async (method, params) => {
+      conn.onRequest = async (method, _params) => {
         if (method === "workspace/configuration") {
           return [{ validate: "on" }];
         }
