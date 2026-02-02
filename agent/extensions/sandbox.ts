@@ -2,6 +2,7 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
+import { isToolCallEventType } from "@mariozechner/pi-coding-agent";
 
 type Quote = "'" | '"' | "`";
 
@@ -622,10 +623,10 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("tool_call", async (event, ctx) => {
-    if (event.toolName !== "bash") return;
+    if (!isToolCallEventType("bash", event)) return;
     if (pi.getFlag(DANGEROUSLY_ALLOW_FLAG) === true) return;
 
-    const cmd = (event.input as Record<string, unknown>).command as string;
+    const cmd = event.input.command;
     if (!cmd) return;
 
     const normalized = normalizeCommand(cmd);

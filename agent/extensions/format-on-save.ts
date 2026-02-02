@@ -10,6 +10,10 @@
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import {
+  isEditToolResult,
+  isWriteToolResult,
+} from "@mariozechner/pi-coding-agent";
 
 import { existsSync } from "fs";
 import { extname, isAbsolute, resolve } from "path";
@@ -97,8 +101,8 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("tool_result", async (event) => {
     if (event.isError) return;
-    if (event.toolName === "edit" || event.toolName === "write") {
-      const filePath = event.input?.path as string;
+    if (isEditToolResult(event) || isWriteToolResult(event)) {
+      const filePath = event.input.path as string | undefined;
       if (filePath) editedFiles.add(filePath);
     }
   });
