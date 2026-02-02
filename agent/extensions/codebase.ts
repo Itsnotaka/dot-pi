@@ -411,7 +411,7 @@ export default function (pi: ExtensionAPI) {
       ),
     }),
 
-    async execute(toolCallId, params, onUpdate, _ctx, _signal) {
+    async execute(toolCallId, params, _signal, onUpdate, _ctx) {
       const {
         action,
         repo,

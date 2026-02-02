@@ -120,7 +120,7 @@ export default function (pi: ExtensionAPI) {
       "Provide a file path to analyze on demand.",
     parameters: GetDiagnosisParams,
 
-    async execute(_toolCallId, params, _onUpdate, ctx) {
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const { path, severity, max_chars } = params as {
         path: string;
         severity?: SeverityFilter;

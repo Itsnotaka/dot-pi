@@ -183,7 +183,7 @@ export default function (pi: ExtensionAPI) {
       ),
     }),
 
-    async execute(_toolCallId, params, onUpdate, ctx, signal) {
+    async execute(_toolCallId, params, signal, onUpdate, ctx) {
       const { libraryName, query, topic } = params as SearchParams;
       const apiKey = loadApiKey();
       if (!apiKey) {

@@ -75,7 +75,7 @@ export default function (pi: ExtensionAPI) {
     parameters: Type.Object({
       arg: Type.String({ description: "Argument" }),
     }),
-    async execute(toolCallId, params, onUpdate, ctx, signal) {
+    async execute(toolCallId, params, signal, onUpdate, ctx) {
       return { content: [{ type: "text", text: "result" }] };
     },
   });

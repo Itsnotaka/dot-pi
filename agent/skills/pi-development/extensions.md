@@ -118,7 +118,7 @@ pi.registerTool({
     action: StringEnum(["list", "add"] as const), // NOT Type.Union/Type.Literal
     text: Type.Optional(Type.String()),
   }),
-  async execute(toolCallId, params, onUpdate, ctx, signal) {
+  async execute(toolCallId, params, signal, onUpdate, ctx) {
     onUpdate?.({
       content: [{ type: "text", text: "progress..." }],
       details: {},

@@ -200,7 +200,7 @@ export default function (pi: ExtensionAPI) {
       "Manage a task list with statuses. Actions: list, add (text), update (id, status/text), remove (id), clear",
     parameters: TaskParams,
 
-    async execute(_toolCallId, params, _onUpdate, _ctx, _signal) {
+    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
       switch (params.action) {
         case "list":
           return {

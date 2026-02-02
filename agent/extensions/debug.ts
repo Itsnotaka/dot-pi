@@ -219,7 +219,7 @@ This enables runtime debugging by capturing labeled data points as the code exec
         })
       ),
     }),
-    async execute(_toolCallId, params, _onUpdate, ctx) {
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       if (server && serverPort) {
         const url = `http://localhost:${serverPort}/debug`;
         return {
@@ -298,7 +298,7 @@ This enables runtime debugging by capturing labeled data points as the code exec
 Call this after debugging is complete. The log file is preserved so you can still read it with debug_read.
 Remember to remove the fetch() calls you inserted in the codebase.`,
     parameters: Type.Object({}),
-    async execute() {
+    async execute(_toolCallId, _params, _signal, _onUpdate, _ctx) {
       if (!server) {
         return {
           content: [{ type: "text", text: "Debug server is not running." }],
@@ -357,7 +357,7 @@ Analyze the captured data to:
         })
       ),
     }),
-    async execute(_toolCallId, params, _onUpdate, ctx) {
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const logPath = getLogPath(ctx.cwd);
 
       if (!fs.existsSync(logPath)) {
@@ -432,7 +432,7 @@ Analyze the captured data to:
 
 Use this before a new debugging session to remove old log entries.`,
     parameters: Type.Object({}),
-    async execute(_toolCallId, _params, _onUpdate, ctx) {
+    async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
       const logPath = getLogPath(ctx.cwd);
 
       if (fs.existsSync(logPath)) {
@@ -474,7 +474,7 @@ Use this before a new debugging session to remove old log entries.`,
     description:
       "Check if debug mode is currently active and get the debug URL.",
     parameters: Type.Object({}),
-    async execute(_toolCallId, _params, _onUpdate, _ctx, _signal) {
+    async execute(_toolCallId, _params, _signal, _onUpdate, _ctx) {
       if (!server || !debugModeActive) {
         const details: { active: boolean; url?: string } = { active: false };
         return {

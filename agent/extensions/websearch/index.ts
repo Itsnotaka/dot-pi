@@ -279,7 +279,7 @@ export default function (pi: ExtensionAPI) {
       ),
     }),
 
-    async execute(_toolCallId, params, onUpdate, ctx, signal) {
+    async execute(_toolCallId, params, signal, onUpdate, ctx) {
       const { query, max_results, max_chars_per_result } =
         params as SearchParams;
       const directUrl = isUrl(query);

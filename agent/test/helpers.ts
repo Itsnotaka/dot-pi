@@ -93,6 +93,7 @@ export function createMockContext(overrides: Partial<ExtensionContext> = {}): Ex
     abort: vi.fn(),
     hasPendingMessages: vi.fn().mockReturnValue(false),
     shutdown: vi.fn(),
+    getSystemPrompt: vi.fn().mockReturnValue(""),
     getContextUsage: vi.fn().mockReturnValue(undefined),
     compact: vi.fn(),
     ...overrides,
@@ -117,5 +118,5 @@ export async function executeTool(
   const tool = api._tools.get(toolName);
   if (!tool) throw new Error(`Tool "${toolName}" not registered`);
   const context = createMockContext(ctx);
-  return tool.execute("test-call", params as any, undefined, context);
+  return tool.execute("test-call", params as any, undefined, undefined, context);
 }

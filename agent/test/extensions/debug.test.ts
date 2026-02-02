@@ -25,7 +25,7 @@ describe("debug extension", () => {
     const stopTool = api._tools.get("debug_stop");
     if (stopTool) {
       try {
-        await stopTool.execute("cleanup", {}, undefined, { cwd: tempDir } as any);
+        await stopTool.execute("cleanup", {}, undefined, undefined, { cwd: tempDir } as any);
       } catch {}
     }
     rmSync(tempDir, { recursive: true, force: true });

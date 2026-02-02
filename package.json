@@ -11,17 +11,17 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "@anthropic-ai/sandbox-runtime": "latest",
-    "@mariozechner/pi-agent-core": "latest",
-    "@mariozechner/pi-ai": "latest",
-    "@mariozechner/pi-coding-agent": "latest",
-    "@mariozechner/pi-tui": "latest",
-    "@sinclair/typebox": "latest",
-    "@types/node": "latest",
-    "@typescript/native-preview": "latest",
-    "oxfmt": "latest",
-    "oxlint": "latest",
-    "oxlint-tsgolint": "latest",
+    "@anthropic-ai/sandbox-runtime": "^0.0.32",
+    "@mariozechner/pi-agent-core": "^0.51.0",
+    "@mariozechner/pi-ai": "^0.51.0",
+    "@mariozechner/pi-coding-agent": "^0.51.0",
+    "@mariozechner/pi-tui": "^0.51.0",
+    "@sinclair/typebox": "^0.34.48",
+    "@types/node": "^25.2.0",
+    "@typescript/native-preview": "^7.0.0-dev.20260201.1",
+    "oxfmt": "^0.27.0",
+    "oxlint": "^1.42.0",
+    "oxlint-tsgolint": "^0.11.4",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   }

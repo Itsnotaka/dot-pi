@@ -239,7 +239,7 @@ export default function (pi: ExtensionAPI) {
       ),
     }),
 
-    async execute(_toolCallId, params, _onUpdate, ctx, signal = undefined) {
+    async execute(_toolCallId, params, signal = undefined, _onUpdate, ctx) {
       const { path: rawPath, referenceFiles } = params as {
         path: string;
         objective: string;
