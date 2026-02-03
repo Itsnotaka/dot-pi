@@ -24,7 +24,7 @@ describe("agent discovery", () => {
   const validAgent = `---
 name: reviewer
 description: Code review agent
-model: anthropic/claude-sonnet-4-5
+model: google-antigravity/claude-sonnet-4-5-thinking
 thinking: medium
 tools: read,grep,find,bash
 ---
@@ -69,7 +69,7 @@ No name in frontmatter.
       const agent = result.agents[0];
       expect(agent.name).toBe("reviewer");
       expect(agent.description).toBe("Code review agent");
-      expect(agent.model).toBe("anthropic/claude-sonnet-4-5");
+      expect(agent.model).toBe("google-antigravity/claude-sonnet-4-5-thinking");
       expect(agent.thinking).toBe("medium");
       expect(agent.tools).toEqual(["read", "grep", "find", "bash"]);
       expect(agent.systemPrompt).toContain("code reviewer");

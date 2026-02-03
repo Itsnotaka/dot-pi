@@ -8,13 +8,13 @@ Located at `~/.pi/agent/settings.json` (global) or `.pi/settings.json`
 ```jsonc
 {
   // Model defaults
-  "defaultProvider": "anthropic",
-  "defaultModel": "claude-sonnet-4-5",
+  "defaultProvider": "google-antigravity",
+  "defaultModel": "claude-opus-4-5-thinking",
   "defaultThinkingLevel": "high", // off, minimal, low, medium, high, xhigh
   "enabledModels": [
     // restrict Ctrl+P cycling
-    "anthropic/claude-sonnet-4-5",
-    "anthropic/claude-opus-4-5",
+    "google-antigravity/claude-sonnet-4-5-thinking",
+    "google-antigravity/claude-opus-4-5-thinking",
   ],
 
   // Discovery paths
@@ -41,11 +41,11 @@ Mode:
   -p                         Print mode (one-shot, exit after response)
 
 Model:
-  --provider <name>          Provider: anthropic, openai, google, github-copilot, ...
-  --model <id>               Model ID: claude-sonnet-4-5, gpt-4o, etc.
+  --provider <name>          Provider: google-antigravity, openai, google, github-copilot, ...
+  --model <id>               Model ID: claude-opus-4-5-thinking, gpt-4o, etc.
   --thinking <level>         off, minimal, low, medium, high, xhigh
   --api-key <key>            API key (or env var name)
-  --models <patterns>        Ctrl+P cycling: "sonnet:high,haiku:low", "anthropic/*"
+  --models <patterns>        Ctrl+P cycling: "sonnet:high,haiku:low", "google-antigravity/*"
 
 Session:
   --no-session               Don't persist session
@@ -72,7 +72,7 @@ Extensions:
 subagents and programmatic use, combine as `provider/model`:
 
 ```bash
-pi --provider anthropic --model claude-sonnet-4-5
+pi --provider google-antigravity --model claude-opus-4-5-thinking
 pi --provider github-copilot --model gpt-5.2
 ```
 
@@ -83,7 +83,7 @@ Managed via `/login` command in interactive mode. Stored in
 
 ```jsonc
 {
-  "anthropic": {
+  "google-antigravity": {
     "type": "oauth",
     "refresh": "...",
     "access": "...",
@@ -98,7 +98,7 @@ Managed via `/login` command in interactive mode. Stored in
 }
 ```
 
-Environment variables also work: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
+Environment variables also work: `GOOGLE_ANTIGRAVITY_API_KEY`, `OPENAI_API_KEY`,
 `GOOGLE_API_KEY`.
 
 ## Custom Providers
@@ -112,7 +112,7 @@ pi.registerProvider("my-proxy", {
   authHeader: true, // adds Authorization: Bearer
   models: [
     {
-      id: "claude-sonnet-4-5",
+      id: "claude-opus-4-5-thinking",
       name: "Sonnet via proxy",
       reasoning: false,
       input: ["text", "image"],
@@ -127,7 +127,7 @@ pi.registerProvider("my-proxy", {
 });
 
 // Override baseUrl for existing provider
-pi.registerProvider("anthropic", { baseUrl: "https://proxy.example.com" });
+pi.registerProvider("google-antigravity", { baseUrl: "https://proxy.example.com" });
 ```
 
 ## Prompt Templates

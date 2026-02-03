@@ -2,7 +2,7 @@
 name: librarian
 description: Specialized codebase understanding and external research agent
 tools: read, grep, find, ls, bash, websearch, codebase
-model: anthropic/claude-sonnet-4-5
+model: google-antigravity/claude-sonnet-4-5-thinking
 thinking: high
 ---
 

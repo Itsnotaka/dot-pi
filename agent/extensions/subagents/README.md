@@ -134,7 +134,7 @@ Agents are markdown files with YAML frontmatter:
 name: my-agent
 description: What this agent does
 tools: read, grep, find, ls
-model: claude-haiku-4-5
+model: google-antigravity/claude-haiku-4-5-thinking
 ---
 
 System prompt for the agent goes here.
@@ -153,10 +153,10 @@ Project agents override user agents with the same name when
 
 | Agent       | Purpose                            | Model             | Tools                                 |
 | ----------- | ---------------------------------- | ----------------- | ------------------------------------- |
-| `finder`    | Fast parallel codebase search      | Claude Haiku 4.5  | read, grep, find, ls, bash            |
-| `oracle`    | Deep analysis, planning, debugging | GPT-5.2           | read, grep, find, ls, bash, WebSearch |
-| `review`    | Code review for quality/security   | Claude Sonnet 4.5 | read, grep, find, ls, bash            |
-| `librarian` | Codebase understanding + research  | Claude Sonnet 4.5 | read, grep, find, ls, bash, WebSearch |
+| `finder`    | Fast parallel codebase search      | Google Antigravity Haiku 4.5  | read, grep, find, ls, bash            |
+| `oracle`    | Deep analysis, planning, debugging | GPT-5.2                       | read, grep, find, ls, bash, WebSearch |
+| `review`    | Code review for quality/security   | Google Antigravity Sonnet 4.5 | read, grep, find, ls, bash            |
+| `librarian` | Codebase understanding + research  | Google Antigravity Sonnet 4.5 | read, grep, find, ls, bash, WebSearch |
 
 ## Workflow Prompts
 
