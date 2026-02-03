@@ -15,8 +15,10 @@ import {
   isWriteToolResult,
 } from "@mariozechner/pi-coding-agent";
 
+import { execFileSync } from "child_process";
 import { existsSync } from "fs";
-import { extname, isAbsolute, resolve } from "path";
+import { dirname, extname, isAbsolute, join, parse, resolve } from "path";
+import { fileURLToPath } from "url";
 
 const FORMATTABLE_EXTS = new Set([
   ".ts",
@@ -50,9 +52,63 @@ function hasAnyFile(cwd: string, names: string[]): boolean {
   return names.some((n) => existsSync(resolve(cwd, n)));
 }
 
+const EXTENSION_DIR = dirname(fileURLToPath(import.meta.url));
+
+function which(cmd: string): string | null {
+  try {
+    return execFileSync("which", [cmd], { encoding: "utf8" }).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function findBinUpward(root: string, bin: string): string | null {
+  let dir = root;
+  const { root: fsRoot } = parse(dir);
+  while (dir !== fsRoot) {
+    const candidate = join(dir, "node_modules", ".bin", bin);
+    if (existsSync(candidate)) return candidate;
+    dir = dirname(dir);
+  }
+  return null;
+}
+
+function resolveLocalOrGlobal(root: string, bin: string): string | null {
+  return (
+    findBinUpward(root, bin) ??
+    findBinUpward(EXTENSION_DIR, bin) ??
+    which(bin)
+  );
+}
+
+function findVenvBinUpward(root: string, bin: string): string | null {
+  let dir = root;
+  const { root: fsRoot } = parse(dir);
+  const isWin = process.platform === "win32";
+  while (dir !== fsRoot) {
+    const candidates = isWin
+      ? [
+          join(dir, ".venv", "Scripts", `${bin}.exe`),
+          join(dir, ".venv", "Scripts", `${bin}.cmd`),
+          join(dir, ".venv", "Scripts", bin),
+        ]
+      : [join(dir, ".venv", "bin", bin)];
+    for (const candidate of candidates) {
+      if (existsSync(candidate)) return candidate;
+    }
+    dir = dirname(dir);
+  }
+  return null;
+}
+
+function resolvePythonBin(root: string, bin: string): string | null {
+  return findVenvBinUpward(root, bin) ?? which(bin);
+}
+
 export function detectFormatter(cwd: string): ToolCmd | null {
   if (hasAnyFile(cwd, [".oxfmtrc.json", ".oxfmtrc.jsonc"])) {
-    return { cmd: "pnpm dlx", args: ["oxfmt"] };
+    const oxfmt = resolveLocalOrGlobal(cwd, "oxfmt");
+    if (oxfmt) return { cmd: oxfmt, args: [] };
   }
   if (
     hasAnyFile(cwd, [
@@ -68,14 +124,16 @@ export function detectFormatter(cwd: string): ToolCmd | null {
       "prettier.config.mjs",
     ])
   ) {
-    return { cmd: "pnpm dlx", args: ["prettier", "--write"] };
+    const prettier = resolveLocalOrGlobal(cwd, "prettier");
+    if (prettier) return { cmd: prettier, args: ["--write"] };
   }
   return null;
 }
 
 export function detectPyFormatter(cwd: string): ToolCmd | null {
   if (hasAnyFile(cwd, ["ruff.toml", ".ruff.toml", "pyproject.toml"])) {
-    return { cmd: "ruff", args: ["format"] };
+    const ruff = resolvePythonBin(cwd, "ruff");
+    if (ruff) return { cmd: ruff, args: ["format"] };
   }
   return null;
 }

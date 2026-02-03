@@ -5,7 +5,7 @@ import {
 } from "child_process";
 import { existsSync } from "fs";
 import { dirname, join, parse } from "path";
-import { pathToFileURL } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 
 import type { Language } from "./roots.js";
 import type { Diagnostic, PublishDiagnosticsParams } from "./types.js";
@@ -52,6 +52,41 @@ function findBinUpward(root: string, bin: string): string | null {
 
 function resolveLocalOrGlobal(root: string, bin: string): string | null {
   return findBinUpward(root, bin) ?? which(bin);
+}
+
+const EXTENSION_DIR = dirname(fileURLToPath(import.meta.url));
+
+function findTsserverLibUpward(start: string): string | null {
+  let dir = start;
+  const { root: fsRoot } = parse(dir);
+  while (dir !== fsRoot) {
+    const libDir = join(dir, "node_modules", "typescript", "lib");
+    const tsserverJs = join(libDir, "tsserver.js");
+    if (existsSync(tsserverJs)) return tsserverJs;
+    if (existsSync(libDir)) return libDir;
+    dir = dirname(dir);
+  }
+  return null;
+}
+
+function resolveTsserverPath(root: string): string | null {
+  return findTsserverLibUpward(root) ?? resolveLocalOrGlobal(root, "tsserver");
+}
+
+const DEFAULT_TSSERVER_FALLBACK_PATH = resolveTsserverPath(EXTENSION_DIR);
+
+function buildTsserverInitializationOptions(
+  root: string
+): { tsserver: { path?: string; fallbackPath?: string } } | undefined {
+  const path = resolveTsserverPath(root);
+  const fallbackPath = DEFAULT_TSSERVER_FALLBACK_PATH;
+  if (!path && !fallbackPath) return undefined;
+  return {
+    tsserver: {
+      ...(path ? { path } : {}),
+      ...(fallbackPath ? { fallbackPath } : {}),
+    },
+  };
 }
 
 function resolveTsServer(root: string): Resolved | null {
@@ -193,6 +228,8 @@ export async function spawnServer(
   };
 
   const rootUri = pathToFileURL(root).toString();
+  const initializationOptions =
+    id === "tsserver" ? buildTsserverInitializationOptions(root) : undefined;
 
   let pullDiagnostics = false;
 
@@ -212,6 +249,7 @@ export async function spawnServer(
           configuration: true,
         },
       },
+      initializationOptions,
     })
     .then((result: any) => {
       pullDiagnostics = !!result?.capabilities?.diagnosticProvider;

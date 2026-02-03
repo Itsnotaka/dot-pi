@@ -56,7 +56,12 @@ const SEVERITY_LEVELS: Record<Exclude<SeverityFilter, "all">, number> = {
 
 export default function (pi: ExtensionAPI) {
   const servers = new Map<string, LspServer>();
-  const broken = new Set<string>();
+  const broken = new Map<string, string>();
+
+  function getErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message) return error.message;
+    return fallback;
+  }
 
   async function getOrSpawnServer(
     id: DiagnosticsServerId,
@@ -66,32 +71,48 @@ export default function (pi: ExtensionAPI) {
     if (broken.has(key)) return null;
 
     let server = servers.get(key);
-    if (server) return server;
+    if (!server) {
+      try {
+        server = await spawnServer(id, root);
+      } catch (error) {
+        broken.set(key, getErrorMessage(error, `${id} spawn failed`));
+        return null;
+      }
 
-    try {
-      server = await spawnServer(id, root);
-    } catch {
-      broken.add(key);
-      return null;
+      servers.set(key, server);
+      server.proc.on("exit", () => servers.delete(key));
     }
 
-    servers.set(key, server);
-    server.proc.on("exit", () => servers.delete(key));
-    return server;
+    try {
+      await server.ready;
+      return server;
+    } catch (error) {
+      broken.set(key, getErrorMessage(error, `${id} initialize failed`));
+      servers.delete(key);
+      await shutdownServer(server).catch(() => {});
+      return null;
+    }
   }
 
   async function getAllDiagnostics(
     abs: string,
     root: string,
     serverIds: DiagnosticsServerId[]
-  ): Promise<{ diagnostics: Diagnostic[]; activeServers: string[] }> {
+  ): Promise<{
+    diagnostics: Diagnostic[];
+    activeServers: string[];
+    errors: string[];
+  }> {
     const spawnResults = await Promise.all(
       serverIds.map((id) => getOrSpawnServer(id, root))
     );
     const active = spawnResults.filter((s): s is LspServer => s !== null);
 
     if (active.length === 0) {
-      return { diagnostics: [], activeServers: [] };
+      const errors = serverIds
+        .map((id) => broken.get(`${id}:${root}`))
+        .filter((reason): reason is string => !!reason);
+      return { diagnostics: [], activeServers: [], errors };
     }
 
     const settled = await Promise.allSettled(
@@ -109,6 +130,7 @@ export default function (pi: ExtensionAPI) {
     return {
       diagnostics,
       activeServers: active.map((s) => s.id),
+      errors: [],
     };
   }
 
@@ -144,18 +166,20 @@ export default function (pi: ExtensionAPI) {
 
       const root = findRootForLanguage(abs, lang) ?? ctx.cwd;
       const serverIds = serversForLanguage(lang, root);
-      const { diagnostics: allDiags, activeServers } = await getAllDiagnostics(
-        abs,
-        root,
-        serverIds
-      );
+      const {
+        diagnostics: allDiags,
+        activeServers,
+        errors,
+      } = await getAllDiagnostics(abs, root, serverIds);
 
       if (activeServers.length === 0) {
+        const reason = errors[0];
+        const reasonText = reason ? ` Reason: ${reason}` : "";
         return {
           content: [
             {
               type: "text",
-              text: `No language servers available for ${abs} (tried: ${serverIds.join(", ")}).`,
+              text: `Diagnostics unavailable for ${abs} (tried: ${serverIds.join(", ")}).${reasonText}`,
             },
           ],
           details: {
@@ -165,6 +189,7 @@ export default function (pi: ExtensionAPI) {
             root,
             lang,
             tried: serverIds,
+            errors,
           },
           isError: true,
         };
@@ -224,5 +249,6 @@ export default function (pi: ExtensionAPI) {
       await shutdownServer(server).catch(() => {});
     }
     servers.clear();
+    broken.clear();
   });
 }
