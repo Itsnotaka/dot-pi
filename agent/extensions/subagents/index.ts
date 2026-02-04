@@ -459,6 +459,7 @@ async function runSingleAgent(
         cwd: cwd ?? defaultCwd,
         shell: false,
         stdio: ["ignore", "pipe", "pipe"],
+        env: { ...process.env, PI_SUBAGENT: "1" },
       });
       let buffer = "";
 
@@ -612,6 +613,11 @@ const SubagentParams = Type.Object({
 });
 
 export default function (pi: ExtensionAPI) {
+  // Prevent subagents from spawning other subagents
+  if (process.env.PI_SUBAGENT === "1") {
+    return;
+  }
+
   pi.on("session_start", async (_event, ctx) => {
     if (!ctx.hasUI) return;
     const { agents } = discoverAgents(ctx.cwd, "user");

@@ -151,16 +151,9 @@ which you should act on.
 - Model: uses oracle subagent for optimization recommendations
 - Model: implements the suggested improvements
 
-# Naming Conventions
+## Naming Conventions
 
-| Category        | Convention  | Example           |
-| --------------- | ----------- | ----------------- |
-| File name       | kebab-case  | `user-profile.ts` |
-| Component       | camelCase   | `userProfile`     |
-| Function/method | camelCase   | `getUserById`     |
-| Type            | PascalCase  | `UserProfile`     |
-| Interface       | PascalCase  | `UserService`     |
-| Constant        | UPPER_SNAKE | `MAX_RETRY_COUNT` |
+- **Naming**: kebab-case for files, camelCase for variables/functions, PascalCase for classes/namespaces/types, UPPER_SNAKE_CASE for constants
 
 # Conventions & Rules
 

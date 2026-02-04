@@ -2,7 +2,7 @@
 name: oracle
 description: Deep analysis, planning, debugging, and expert advisory (read-only)
 tools: read, grep, find, ls, bash, websearch, codebase
-model: github-copilot/gpt-5.2
+model: openai-codex/gpt-5.2-codex
 thinking: xhigh
 ---
 
