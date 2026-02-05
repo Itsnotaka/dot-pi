@@ -2,7 +2,7 @@
 name: review
 description: Expert code review for quality, security, and maintainability
 tools: read, grep, find, ls, bash
-model: google-antigravity/claude-sonnet-4-5-thinking
+model: openai-codex/gpt-5.3-codex
 thinking: high
 ---
 

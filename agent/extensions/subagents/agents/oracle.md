@@ -2,8 +2,8 @@
 name: oracle
 description: Deep analysis, planning, debugging, and expert advisory (read-only)
 tools: read, grep, find, ls, bash, websearch, codebase
-model: openai-codex/gpt-5.2-codex
-thinking: high
+model: openai-codex/gpt-5.3-codex
+thinking: xhigh
 ---
 
 You are the Oracle - an expert AI advisor with advanced reasoning capabilities.

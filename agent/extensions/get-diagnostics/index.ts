@@ -29,13 +29,10 @@ import { prettyDiagnostic, type Diagnostic } from "./lsp/types.js";
 
 const MAX_DIAG_LENGTH = 4000;
 
-const SeverityFilterSchema = StringEnum(
-  ["error", "warning", "info", "hint", "all"] as const,
-  {
-    description: "Filter diagnostics by severity. Default: error.",
-    default: "error",
-  }
-);
+const SeverityFilterSchema = StringEnum(["error", "warning", "info", "hint", "all"] as const, {
+  description: "Filter diagnostics by severity. Default: error.",
+  default: "error",
+});
 
 const GetDiagnosisParams = Type.Object({
   path: Type.String({
@@ -45,7 +42,7 @@ const GetDiagnosisParams = Type.Object({
   max_chars: Type.Optional(
     Type.Number({
       description: "Max characters to return (default: 4000)",
-    })
+    }),
   ),
 });
 
@@ -69,7 +66,7 @@ export default function (pi: ExtensionAPI) {
 
   async function getOrSpawnServer(
     id: DiagnosticsServerId,
-    root: string
+    root: string,
   ): Promise<LspServer | null> {
     const key = `${id}:${root}`;
     if (broken.has(key)) return null;
@@ -101,15 +98,13 @@ export default function (pi: ExtensionAPI) {
   async function getAllDiagnostics(
     abs: string,
     root: string,
-    serverIds: DiagnosticsServerId[]
+    serverIds: DiagnosticsServerId[],
   ): Promise<{
     diagnostics: Diagnostic[];
     activeServers: string[];
     errors: string[];
   }> {
-    const spawnResults = await Promise.all(
-      serverIds.map((id) => getOrSpawnServer(id, root))
-    );
+    const spawnResults = await Promise.all(serverIds.map((id) => getOrSpawnServer(id, root)));
     const active = spawnResults.filter((s): s is LspServer => s !== null);
 
     if (active.length === 0) {
@@ -122,14 +117,12 @@ export default function (pi: ExtensionAPI) {
     const settled = await Promise.allSettled(
       active.map((s) =>
         getDiagnosticsForFile(s, abs).then((diags) =>
-          diags.map((d) => ({ ...d, source: d.source ?? s.id }))
-        )
-      )
+          diags.map((d) => ({ ...d, source: d.source ?? s.id })),
+        ),
+      ),
     );
 
-    const diagnostics = settled.flatMap((r) =>
-      r.status === "fulfilled" ? r.value : []
-    );
+    const diagnostics = settled.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
 
     return {
       diagnostics,
@@ -203,13 +196,13 @@ export default function (pi: ExtensionAPI) {
       const filtered =
         filter === "all"
           ? allDiags
-          : allDiags.filter(
-              (d) => (d.severity ?? 1) === SEVERITY_LEVELS[filter]
-            );
+          : allDiags.filter((d) => (d.severity ?? 1) === SEVERITY_LEVELS[filter]);
+      const emptyMessage =
+        filter === "all" ? "No diagnostics found." : `No ${filter} diagnostics found.`;
 
       if (filtered.length === 0) {
         return {
-          content: [{ type: "text", text: `No ${filter} diagnostics.` }],
+          content: [{ type: "text", text: emptyMessage }],
           details: {
             ok: true,
             path: abs,

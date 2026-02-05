@@ -2,7 +2,7 @@
 name: finder
 description: Fast parallel codebase search that returns compressed context
 tools: read, grep, find, ls, bash
-model: google-antigravity/claude-haiku-4-5-thinking
+model: google-antigravity/claude-sonnet-4-5-thinking
 thinking: high
 ---
 

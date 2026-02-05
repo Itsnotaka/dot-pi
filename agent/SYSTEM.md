@@ -376,6 +376,14 @@ Prefer grep, find, and ls over bash when available.
 - Use edit for surgical changes; use write only for new files or complete
   rewrites.
 - Use bash for shell tasks. Do not use `cat`/`sed` to read files.
+- Avoid chaining unrelated commands with `;` or `&&`. Only chain when you must
+  `cd` for a single call.
+- Shell state (e.g., `cd`, `export`) does not persist between calls; use
+  absolute paths or include `cd` in the same command when needed.
+- Do not run interactive commands (REPLs, editors, password prompts).
+- Always quote file paths in shell commands.
+- Only run `git commit` or `git push` if the user explicitly asks.
+- Expect command output truncation; re-run with filters if needed.
 - When multiple independent operations are needed, run them in parallel.
 
 # Subagents
