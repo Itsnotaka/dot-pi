@@ -106,10 +106,9 @@ function resolvePythonBin(root: string, bin: string): string | null {
 }
 
 export function detectFormatter(cwd: string): ToolCmd | null {
-  if (hasAnyFile(cwd, [".oxfmtrc.json", ".oxfmtrc.jsonc"])) {
-    const oxfmt = resolveLocalOrGlobal(cwd, "oxfmt");
-    if (oxfmt) return { cmd: oxfmt, args: [] };
-  }
+  const oxfmt = resolveLocalOrGlobal(cwd, "oxfmt");
+  if (oxfmt) return { cmd: oxfmt, args: [] };
+
   if (
     hasAnyFile(cwd, [
       ".prettierrc",

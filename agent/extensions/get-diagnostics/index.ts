@@ -2,8 +2,12 @@
  * LSP diagnostics tool — on-demand typecheck/syntax check.
  *
  * Supports multiple LSP servers per file:
- *   JS/TS: tsserver + oxlint + eslint
+ *   JS/TS: tsserver + oxfmt + oxlint/eslint
  *   Python: ty (astral-sh/ty)
+ *   Go: gopls
+ *   YAML: yaml-language-server
+ *   Astro: astro-ls
+ *   Markdown: marksman (if installed)
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";

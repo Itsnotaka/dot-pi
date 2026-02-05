@@ -15,6 +15,13 @@ const LANG_IDS: Record<string, string> = {
   ".cts": "typescript",
   ".py": "python",
   ".pyi": "python",
+  ".go": "go",
+  ".yaml": "yaml",
+  ".yml": "yaml",
+  ".astro": "astro",
+  ".md": "markdown",
+  ".mdx": "markdown",
+  ".markdown": "markdown",
 };
 
 const DIAGNOSTICS_DEBOUNCE_MS = 50;

@@ -12,7 +12,16 @@ import type { Diagnostic, PublishDiagnosticsParams } from "./types.js";
 
 import { createConnection, type JsonRpcConnection } from "./jsonrpc.js";
 
-export type DiagnosticsServerId = "tsserver" | "oxlint" | "eslint" | "ty";
+export type DiagnosticsServerId =
+  | "tsserver"
+  | "oxlint"
+  | "eslint"
+  | "oxfmt"
+  | "ty"
+  | "gopls"
+  | "yaml"
+  | "astro"
+  | "marksman";
 
 interface Resolved {
   cmd: string;
@@ -138,11 +147,58 @@ function resolveTyServer(_root: string): Resolved | null {
   return null;
 }
 
+function resolveGoplsServer(root: string): Resolved | null {
+  const bin = resolveLocalOrGlobal(root, "gopls");
+  if (bin) return { cmd: bin, args: [] };
+  return null;
+}
+
+function resolveYamlServer(root: string): Resolved | null {
+  const bin = resolveLocalOrGlobal(root, "yaml-language-server");
+  if (bin) return { cmd: bin, args: ["--stdio"] };
+  const npx = which("npx");
+  if (npx)
+    return {
+      cmd: npx,
+      args: ["--yes", "yaml-language-server", "--stdio"],
+    };
+  return null;
+}
+
+function resolveAstroServer(root: string): Resolved | null {
+  const bin = resolveLocalOrGlobal(root, "astro-ls");
+  if (bin) return { cmd: bin, args: ["--stdio"] };
+  const npx = which("npx");
+  if (npx)
+    return {
+      cmd: npx,
+      args: ["--yes", "@astrojs/language-server", "--stdio"],
+    };
+  return null;
+}
+
+function resolveOxfmtServer(root: string): Resolved | null {
+  const oxfmt = resolveLocalOrGlobal(root, "oxfmt");
+  if (oxfmt) return { cmd: oxfmt, args: ["--lsp"] };
+  return null;
+}
+
+function resolveMarksmanServer(root: string): Resolved | null {
+  const bin = resolveLocalOrGlobal(root, "marksman");
+  if (bin) return { cmd: bin, args: ["server"] };
+  return null;
+}
+
 const RESOLVERS: Record<DiagnosticsServerId, (root: string) => Resolved | null> = {
   tsserver: resolveTsServer,
   oxlint: resolveOxlintServer,
   eslint: resolveEslintServer,
+  oxfmt: resolveOxfmtServer,
   ty: resolveTyServer,
+  gopls: resolveGoplsServer,
+  yaml: resolveYamlServer,
+  astro: resolveAstroServer,
+  marksman: resolveMarksmanServer,
 };
 
 export function resolveServer(
@@ -156,17 +212,35 @@ export function serversForLanguage(
   lang: Language,
   root: string
 ): DiagnosticsServerId[] {
-  if (lang === "python") return ["ty"];
+  switch (lang) {
+    case "python":
+      return ["ty"];
+    case "go":
+      return ["gopls"];
+    case "yaml":
+      return ["yaml"];
+    case "astro":
+      return ["astro"];
+    case "markdown":
+      return ["marksman"];
+    case "typescript": {
+      const ids: DiagnosticsServerId[] = ["tsserver"];
 
-  const ids: DiagnosticsServerId[] = ["tsserver"];
+      if (resolveOxfmtServer(root)) {
+        ids.push("oxfmt");
+      }
 
-  if (resolveOxlintServer(root)) {
-    ids.push("oxlint");
-  } else if (resolveEslintServer(root)) {
-    ids.push("eslint");
+      if (resolveOxlintServer(root)) {
+        ids.push("oxlint");
+      } else if (resolveEslintServer(root)) {
+        ids.push("eslint");
+      }
+
+      return ids;
+    }
+    default:
+      return [];
   }
-
-  return ids;
 }
 
 const ESLINT_DEFAULT_CONFIG = {
@@ -176,7 +250,20 @@ const ESLINT_DEFAULT_CONFIG = {
 };
 
 function languageForServer(id: DiagnosticsServerId): Language {
-  return id === "ty" ? "python" : "typescript";
+  switch (id) {
+    case "ty":
+      return "python";
+    case "gopls":
+      return "go";
+    case "yaml":
+      return "yaml";
+    case "astro":
+      return "astro";
+    case "marksman":
+      return "markdown";
+    default:
+      return "typescript";
+  }
 }
 
 export async function spawnServer(

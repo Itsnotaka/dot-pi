@@ -2,7 +2,8 @@
 name: look_at
 description: Extract information from local media files (PDFs, images, video)
 tools: look_at
-model: opencode/kimi2.5-free
+model: google-antigravity/gemini-3-flash
+thinking: medium
 ---
 
 ## look_at
