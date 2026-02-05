@@ -42,6 +42,37 @@ const FORMATTABLE_EXTS = new Set([
   ".mdx",
 ]);
 const PY_EXTS = new Set([".py", ".pyi"]);
+const TS_EXTS = new Set([
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".mts",
+  ".cts",
+]);
+const GO_EXTS = new Set([".go"]);
+const YAML_EXTS = new Set([".yaml", ".yml"]);
+const ASTRO_EXTS = new Set([".astro"]);
+const MARKDOWN_EXTS = new Set([".md", ".mdx", ".markdown"]);
+
+type LspLanguage =
+  | "typescript"
+  | "python"
+  | "go"
+  | "yaml"
+  | "astro"
+  | "markdown";
+
+const LSP_LABELS: Record<LspLanguage, string> = {
+  typescript: "TypeScript",
+  python: "Python",
+  go: "Go",
+  yaml: "YAML",
+  astro: "Astro",
+  markdown: "Markdown",
+};
 
 interface ToolCmd {
   cmd: string;
@@ -105,6 +136,80 @@ function resolvePythonBin(root: string, bin: string): string | null {
   return findVenvBinUpward(root, bin) ?? which(bin);
 }
 
+function detectLspLanguage(file: string): LspLanguage | null {
+  const ext = extname(file).toLowerCase();
+  if (ASTRO_EXTS.has(ext)) return "astro";
+  if (MARKDOWN_EXTS.has(ext)) return "markdown";
+  if (YAML_EXTS.has(ext)) return "yaml";
+  if (GO_EXTS.has(ext)) return "go";
+  if (PY_EXTS.has(ext)) return "python";
+  if (TS_EXTS.has(ext)) return "typescript";
+  return null;
+}
+
+function pickTypescriptLsp(root: string): string | null {
+  if (
+    resolveLocalOrGlobal(root, "oxlint") ||
+    resolveLocalOrGlobal(root, "oxc_language_server")
+  ) {
+    return "oxlint";
+  }
+
+  if (
+    resolveLocalOrGlobal(root, "vscode-eslint-language-server") ||
+    which("npx")
+  ) {
+    return "eslint";
+  }
+
+  if (
+    resolveLocalOrGlobal(root, "typescript-language-server") ||
+    resolveLocalOrGlobal(root, "tsserver") ||
+    which("npx")
+  ) {
+    return "tsserver";
+  }
+
+  return null;
+}
+
+function pickLspServer(lang: LspLanguage, root: string): string | null {
+  switch (lang) {
+    case "typescript":
+      return pickTypescriptLsp(root);
+    case "python":
+      return resolveLocalOrGlobal(root, "ty") || which("uvx") ? "ty" : null;
+    case "go":
+      return resolveLocalOrGlobal(root, "gopls") ? "gopls" : null;
+    case "yaml":
+      return resolveLocalOrGlobal(root, "yaml-language-server") || which("npx")
+        ? "yaml-language-server"
+        : null;
+    case "astro":
+      return resolveLocalOrGlobal(root, "astro-ls") || which("npx")
+        ? "astro-ls"
+        : null;
+    case "markdown":
+      return resolveLocalOrGlobal(root, "marksman") ? "marksman" : null;
+    default:
+      return null;
+  }
+}
+
+function buildLspSummary(files: string[], root: string): string[] {
+  const summaries = new Map<LspLanguage, string>();
+  for (const file of files) {
+    const lang = detectLspLanguage(file);
+    if (!lang) continue;
+    const server = pickLspServer(lang, root);
+    if (!server) continue;
+    summaries.set(lang, server);
+  }
+  return [...summaries.entries()].map(
+    ([lang, server]) => `${LSP_LABELS[lang]} (${server})`
+  );
+}
+
 export function detectFormatter(cwd: string): ToolCmd | null {
   const oxfmt = resolveLocalOrGlobal(cwd, "oxfmt");
   if (oxfmt) return { cmd: oxfmt, args: [] };
@@ -145,7 +250,7 @@ export function partitionFiles(files: string[]): {
   const python: string[] = [];
 
   for (const f of files) {
-    const ext = extname(f);
+    const ext = extname(f).toLowerCase();
     if (FORMATTABLE_EXTS.has(ext)) formattable.push(f);
     else if (PY_EXTS.has(ext)) python.push(f);
   }
@@ -182,12 +287,16 @@ export default function (pi: ExtensionAPI) {
     if (resolved.length === 0) return;
 
     const { formattable, python } = partitionFiles(resolved);
+    const formattedFiles: string[] = [];
+    let didFormat = false;
 
     if (formattable.length > 0) {
       const fmt = detectFormatter(cwd);
       if (fmt) {
         try {
           await pi.exec(fmt.cmd, [...fmt.args, ...formattable]);
+          formattedFiles.push(...formattable);
+          didFormat = true;
         } catch {
           // formatter not installed — skip silently
         }
@@ -199,14 +308,18 @@ export default function (pi: ExtensionAPI) {
       if (fmt) {
         try {
           await pi.exec(fmt.cmd, [...fmt.args, ...python]);
+          formattedFiles.push(...python);
+          didFormat = true;
         } catch {
           // formatter not installed — skip silently
         }
       }
     }
 
-    if (ctx.hasUI) {
-      ctx.ui.notify("Formatted ✓", "info");
+    if (ctx.hasUI && didFormat) {
+      const summaries = buildLspSummary(formattedFiles, cwd);
+      const message = summaries.length > 0 ? summaries.join(", ") : "Formatted";
+      ctx.ui.notify(message, "info");
     }
   });
 }
