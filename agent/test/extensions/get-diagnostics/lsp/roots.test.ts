@@ -2,13 +2,22 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { detectLanguage, findRootForLanguage, findTsRoot, findPyRoot } from "../../../../extensions/get-diagnostics/lsp/roots.ts";
+
+import {
+  detectLanguage,
+  findRootForLanguage,
+  findTsRoot,
+  findPyRoot,
+} from "../../../../extensions/get-diagnostics/lsp/roots.ts";
 
 describe("LSP roots", () => {
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = join(tmpdir(), `pi-roots-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    tempDir = join(
+      tmpdir(),
+      `pi-roots-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    );
     mkdirSync(tempDir, { recursive: true });
   });
 
@@ -115,12 +124,16 @@ describe("LSP roots", () => {
   describe("findRootForLanguage", () => {
     it("delegates to findTsRoot for typescript", () => {
       writeFileSync(join(tempDir, "package.json"), "{}");
-      expect(findRootForLanguage(join(tempDir, "app.ts"), "typescript")).toBe(tempDir);
+      expect(findRootForLanguage(join(tempDir, "app.ts"), "typescript")).toBe(
+        tempDir
+      );
     });
 
     it("delegates to findPyRoot for python", () => {
       writeFileSync(join(tempDir, "pyproject.toml"), "");
-      expect(findRootForLanguage(join(tempDir, "app.py"), "python")).toBe(tempDir);
+      expect(findRootForLanguage(join(tempDir, "app.py"), "python")).toBe(
+        tempDir
+      );
     });
   });
 });

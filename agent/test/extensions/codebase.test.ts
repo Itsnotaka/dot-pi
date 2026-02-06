@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 function computeCacheKey(
   repoUrl: string,
   branch: string,
-  sparsePaths?: string[],
+  sparsePaths?: string[]
 ): string {
   const normalized = repoUrl.replace(/\.git$/, "").toLowerCase();
   const sparse = sparsePaths ? [...sparsePaths].sort().join("|") : "";
@@ -69,7 +69,10 @@ const ERROR_PATTERNS: [GitErrorKind, RegExp[]][] = [
   ],
 ];
 
-function classifyGitError(stderr: string): { kind: GitErrorKind; hint: string } {
+function classifyGitError(stderr: string): {
+  kind: GitErrorKind;
+  hint: string;
+} {
   for (const [kind, patterns] of ERROR_PATTERNS) {
     if (patterns.some((p) => p.test(stderr))) {
       return { kind, hint: "" };
@@ -111,13 +114,21 @@ describe("codebase extension logic", () => {
 
     it("sparse paths affect the key", () => {
       const k1 = computeCacheKey("https://github.com/user/repo", "main");
-      const k2 = computeCacheKey("https://github.com/user/repo", "main", ["src"]);
+      const k2 = computeCacheKey("https://github.com/user/repo", "main", [
+        "src",
+      ]);
       expect(k1).not.toBe(k2);
     });
 
     it("sparse paths are sorted for consistency", () => {
-      const k1 = computeCacheKey("https://github.com/user/repo", "main", ["src", "docs"]);
-      const k2 = computeCacheKey("https://github.com/user/repo", "main", ["docs", "src"]);
+      const k1 = computeCacheKey("https://github.com/user/repo", "main", [
+        "src",
+        "docs",
+      ]);
+      const k2 = computeCacheKey("https://github.com/user/repo", "main", [
+        "docs",
+        "src",
+      ]);
       expect(k1).toBe(k2);
     });
 
@@ -130,36 +141,63 @@ describe("codebase extension logic", () => {
 
   describe("classifyGitError", () => {
     it("classifies branch not found", () => {
-      expect(classifyGitError("fatal: couldn't find remote ref feature-x").kind).toBe("branch_not_found");
-      expect(classifyGitError("Remote branch foo not found in upstream").kind).toBe("branch_not_found");
+      expect(
+        classifyGitError("fatal: couldn't find remote ref feature-x").kind
+      ).toBe("branch_not_found");
+      expect(
+        classifyGitError("Remote branch foo not found in upstream").kind
+      ).toBe("branch_not_found");
     });
 
     it("classifies repo not found", () => {
-      expect(classifyGitError("remote: Repository not found.").kind).toBe("repo_not_found");
-      expect(classifyGitError("fatal: repository 'https://...' not found").kind).toBe("repo_not_found");
+      expect(classifyGitError("remote: Repository not found.").kind).toBe(
+        "repo_not_found"
+      );
+      expect(
+        classifyGitError("fatal: repository 'https://...' not found").kind
+      ).toBe("repo_not_found");
     });
 
     it("classifies auth failures", () => {
-      expect(classifyGitError("fatal: Authentication failed for 'https://...'").kind).toBe("auth_failed");
-      expect(classifyGitError("fatal: could not read Username for 'https://...'").kind).toBe("auth_failed");
-      expect(classifyGitError("Permission denied (publickey)").kind).toBe("auth_failed");
-      expect(classifyGitError("The requested URL returned error: 403").kind).toBe("auth_failed");
+      expect(
+        classifyGitError("fatal: Authentication failed for 'https://...'").kind
+      ).toBe("auth_failed");
+      expect(
+        classifyGitError("fatal: could not read Username for 'https://...'")
+          .kind
+      ).toBe("auth_failed");
+      expect(classifyGitError("Permission denied (publickey)").kind).toBe(
+        "auth_failed"
+      );
+      expect(
+        classifyGitError("The requested URL returned error: 403").kind
+      ).toBe("auth_failed");
     });
 
     it("classifies rate limiting", () => {
       expect(classifyGitError("rate limit exceeded").kind).toBe("rate_limited");
-      expect(classifyGitError("HTTP 429 Too Many Requests").kind).toBe("rate_limited");
+      expect(classifyGitError("HTTP 429 Too Many Requests").kind).toBe(
+        "rate_limited"
+      );
     });
 
     it("classifies network errors", () => {
-      expect(classifyGitError("Could not resolve host: github.com").kind).toBe("network_error");
+      expect(classifyGitError("Could not resolve host: github.com").kind).toBe(
+        "network_error"
+      );
       expect(classifyGitError("Connection refused").kind).toBe("network_error");
-      expect(classifyGitError("Connection timed out").kind).toBe("network_error");
-      expect(classifyGitError("SSL certificate problem").kind).toBe("network_error");
+      expect(classifyGitError("Connection timed out").kind).toBe(
+        "network_error"
+      );
+      expect(classifyGitError("SSL certificate problem").kind).toBe(
+        "network_error"
+      );
     });
 
     it("returns unknown for unrecognized errors", () => {
-      expect(classifyGitError("something unexpected happened").kind).toBe("unknown");
+      expect(classifyGitError("something unexpected happened").kind).toBe(
+        "unknown"
+      );
       expect(classifyGitError("").kind).toBe("unknown");
     });
   });

@@ -1,6 +1,10 @@
 import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createConnection, type JsonRpcConnection } from "../../../../extensions/get-diagnostics/lsp/jsonrpc.ts";
+
+import {
+  createConnection,
+  type JsonRpcConnection,
+} from "../../../../extensions/get-diagnostics/lsp/jsonrpc.ts";
 
 function createMockProcess() {
   const stdin = new PassThrough();
@@ -61,7 +65,9 @@ describe("JSON-RPC connection", () => {
     });
 
     it("resolves when response arrives", async () => {
-      const promise = conn.sendRequest("textDocument/hover", { uri: "file:///test.ts" });
+      const promise = conn.sendRequest("textDocument/hover", {
+        uri: "file:///test.ts",
+      });
 
       sendLspMessage(proc.stdout, {
         jsonrpc: "2.0",

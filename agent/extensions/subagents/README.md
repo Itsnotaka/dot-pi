@@ -151,8 +151,8 @@ Project agents override user agents with the same name when
 
 ## Agents
 
-| Agent       | Purpose                            | Model             | Tools                                 |
-| ----------- | ---------------------------------- | ----------------- | ------------------------------------- |
+| Agent       | Purpose                            | Model                         | Tools                                 |
+| ----------- | ---------------------------------- | ----------------------------- | ------------------------------------- |
 | `finder`    | Fast parallel codebase search      | Google Antigravity Haiku 4.5  | read, grep, find, ls, bash            |
 | `oracle`    | Deep analysis, planning, debugging | GPT-5.2                       | read, grep, find, ls, bash, WebSearch |
 | `review`    | Code review for quality/security   | Google Antigravity Sonnet 4.5 | read, grep, find, ls, bash            |

@@ -204,19 +204,28 @@ function formatToolCall(
       const filePath = shortenPath(rawPath);
       const content = (args.content || "") as string;
       const lines = content.split("\n").length;
-      let text = themeFg("muted", "← ") + themeFg("muted", "write ") + themeFg("accent", filePath);
+      let text =
+        themeFg("muted", "← ") +
+        themeFg("muted", "write ") +
+        themeFg("accent", filePath);
       if (lines > 1) text += themeFg("dim", ` (${lines} lines)`);
       return text;
     }
     case "edit": {
       const rawPath = (args.file_path || args.path || "...") as string;
       return (
-        themeFg("muted", "← ") + themeFg("muted", "edit ") + themeFg("accent", shortenPath(rawPath))
+        themeFg("muted", "← ") +
+        themeFg("muted", "edit ") +
+        themeFg("accent", shortenPath(rawPath))
       );
     }
     case "ls": {
       const rawPath = (args.path || ".") as string;
-      return themeFg("muted", "→ ") + themeFg("muted", "ls ") + themeFg("accent", shortenPath(rawPath));
+      return (
+        themeFg("muted", "→ ") +
+        themeFg("muted", "ls ") +
+        themeFg("accent", shortenPath(rawPath))
+      );
     }
     case "find": {
       const pattern = (args.pattern || "*") as string;
@@ -248,7 +257,11 @@ function formatToolCall(
       const argsStr = JSON.stringify(args);
       const preview =
         argsStr.length > 50 ? `${argsStr.slice(0, 50)}...` : argsStr;
-      return themeFg("muted", "⚙ ") + themeFg("accent", toolName) + themeFg("dim", ` ${preview}`);
+      return (
+        themeFg("muted", "⚙ ") +
+        themeFg("accent", toolName) +
+        themeFg("dim", ` ${preview}`)
+      );
     }
   }
 }
@@ -1087,11 +1100,7 @@ export default function (pi: ExtensionAPI) {
               if (item.type === "toolCall")
                 container.addChild(
                   new Text(
-                    formatToolCall(
-                        item.name,
-                        item.args,
-                        theme.fg.bind(theme)
-                      ),
+                    formatToolCall(item.name, item.args, theme.fg.bind(theme)),
                     0,
                     0
                   )
@@ -1217,10 +1226,10 @@ export default function (pi: ExtensionAPI) {
                   container.addChild(
                     new Text(
                       formatToolCall(
-                          item.name,
-                          item.args,
-                          theme.fg.bind(theme)
-                        ),
+                        item.name,
+                        item.args,
+                        theme.fg.bind(theme)
+                      ),
                       0,
                       0
                     )
@@ -1342,11 +1351,7 @@ export default function (pi: ExtensionAPI) {
               if (item.type === "toolCall") {
                 container.addChild(
                   new Text(
-                    formatToolCall(
-                        item.name,
-                        item.args,
-                        theme.fg.bind(theme)
-                      ),
+                    formatToolCall(item.name, item.args, theme.fg.bind(theme)),
                     0,
                     0
                   )

@@ -23,7 +23,7 @@ function htmlToMarkdown(html: string): string {
 
   text = text.replace(
     /<(script|style|noscript|svg|iframe)[^>]*>[\s\S]*?<\/\1>/gi,
-    "",
+    ""
   );
 
   text = text.replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, "\n# $1\n");
@@ -32,16 +32,16 @@ function htmlToMarkdown(html: string): string {
 
   text = text.replace(
     /<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi,
-    "[$2]($1)",
+    "[$2]($1)"
   );
 
   text = text.replace(
     /<pre[^>]*><code[^>]*class="[^"]*language-(\w+)"[^>]*>([\s\S]*?)<\/code><\/pre>/gi,
-    "\n```$1\n$2\n```\n",
+    "\n```$1\n$2\n```\n"
   );
   text = text.replace(
     /<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi,
-    "\n```\n$1\n```\n",
+    "\n```\n$1\n```\n"
   );
   text = text.replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, "`$1`");
 
@@ -53,11 +53,11 @@ function htmlToMarkdown(html: string): string {
   text = text.replace(/<br[^>]*\/?>/gi, "\n");
   text = text.replace(
     /<\/(p|div|section|article|header|footer|main|nav|aside)>/gi,
-    "\n\n",
+    "\n\n"
   );
   text = text.replace(
     /<(p|div|section|article|header|footer|main|nav|aside)[^>]*>/gi,
-    "",
+    ""
   );
 
   text = text.replace(/<[^>]+>/g, "");
@@ -69,7 +69,7 @@ function htmlToMarkdown(html: string): string {
   text = text.replace(/&#39;/g, "'");
   text = text.replace(/&nbsp;/g, " ");
   text = text.replace(/&#(\d+);/g, (_, code) =>
-    String.fromCharCode(Number(code)),
+    String.fromCharCode(Number(code))
   );
   text = text.replace(/&\w+;/g, "");
 
@@ -143,15 +143,20 @@ describe("websearch helpers", () => {
 
     it("converts links", () => {
       const html = '<a href="https://example.com">Click here</a>';
-      expect(htmlToMarkdown(html)).toContain("[Click here](https://example.com)");
+      expect(htmlToMarkdown(html)).toContain(
+        "[Click here](https://example.com)"
+      );
     });
 
     it("converts inline code", () => {
-      expect(htmlToMarkdown("<code>const x = 1</code>")).toContain("`const x = 1`");
+      expect(htmlToMarkdown("<code>const x = 1</code>")).toContain(
+        "`const x = 1`"
+      );
     });
 
     it("converts code blocks", () => {
-      const html = '<pre><code class="language-js">console.log("hi")</code></pre>';
+      const html =
+        '<pre><code class="language-js">console.log("hi")</code></pre>';
       const result = htmlToMarkdown(html);
       expect(result).toContain("```js");
       expect(result).toContain('console.log("hi")');
@@ -221,13 +226,17 @@ describe("websearch helpers", () => {
 
     it("strips remaining HTML tags", () => {
       expect(htmlToMarkdown('<span class="x">text</span>')).toBe("text");
-      expect(htmlToMarkdown("<custom-tag>content</custom-tag>")).toBe("content");
+      expect(htmlToMarkdown("<custom-tag>content</custom-tag>")).toBe(
+        "content"
+      );
     });
   });
 
   describe("extractTitle", () => {
     it("extracts title from HTML", () => {
-      expect(extractTitle("<html><head><title>My Page</title></head></html>")).toBe("My Page");
+      expect(
+        extractTitle("<html><head><title>My Page</title></head></html>")
+      ).toBe("My Page");
     });
 
     it("returns null when no title tag", () => {
@@ -235,7 +244,9 @@ describe("websearch helpers", () => {
     });
 
     it("strips tags from title content", () => {
-      expect(extractTitle("<title><b>Bold</b> Title</title>")).toBe("Bold Title");
+      expect(extractTitle("<title><b>Bold</b> Title</title>")).toBe(
+        "Bold Title"
+      );
     });
 
     it("returns null for empty title", () => {

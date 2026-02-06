@@ -74,7 +74,7 @@ function shorten(text: string, max: number): string {
 async function apiGet<T>(
   endpoint: string,
   query: Record<string, string | number | undefined>,
-  apiKey: string,
+  apiKey: string
 ): Promise<T> {
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(query)) {
@@ -98,9 +98,13 @@ async function apiGet<T>(
 async function searchLibraries(
   apiKey: string,
   query: string,
-  libraryName: string,
+  libraryName: string
 ): Promise<Library[]> {
-  const data = await apiGet<ApiSearchResponse>("v2/libs/search", { query, libraryName }, apiKey);
+  const data = await apiGet<ApiSearchResponse>(
+    "v2/libs/search",
+    { query, libraryName },
+    apiKey
+  );
   return data.results.map((r) => ({
     id: r.id,
     name: r.title || r.name || r.id,
@@ -112,7 +116,11 @@ async function searchLibraries(
   }));
 }
 
-async function getContext(apiKey: string, query: string, libraryId: string): Promise<string> {
+async function getContext(
+  apiKey: string,
+  query: string,
+  libraryId: string
+): Promise<string> {
   const params = new URLSearchParams();
   params.append("query", query);
   params.append("libraryId", libraryId);
@@ -145,7 +153,8 @@ export default function (pi: ExtensionAPI) {
       "Returns version-specific docs and working code examples pulled directly from official sources.",
     parameters: Type.Object({
       libraryName: Type.String({
-        description: "Name of the library/package to search (e.g. 'react', 'next.js', 'express')",
+        description:
+          "Name of the library/package to search (e.g. 'react', 'next.js', 'express')",
       }),
       query: Type.String({
         description:
@@ -153,13 +162,14 @@ export default function (pi: ExtensionAPI) {
       }),
       topic: Type.Optional(
         Type.String({
-          description: "Optional topic filter (e.g. 'routing', 'hooks', 'middleware')",
-        }),
+          description:
+            "Optional topic filter (e.g. 'routing', 'hooks', 'middleware')",
+        })
       ),
       tokens: Type.Optional(
         Type.Number({
           description: "Max tokens of documentation to return (default 5000)",
-        }),
+        })
       ),
     }),
 
@@ -209,14 +219,18 @@ export default function (pi: ExtensionAPI) {
             } as SpinnerDetails,
           });
         },
-        signal,
+        signal
       );
 
       const startedAt = Date.now();
 
       try {
         // Step 1: resolve library ID
-        const libraries = await searchLibraries(apiKey, searchQuery, libraryName);
+        const libraries = await searchLibraries(
+          apiKey,
+          searchQuery,
+          libraryName
+        );
 
         if (!libraries.length) {
           return {
@@ -240,7 +254,8 @@ export default function (pi: ExtensionAPI) {
 
         // Pick best match (first result, highest ranked by Context7)
         const lib = libraries[0];
-        const libraryDisplayName = lib.name?.trim() || libraryName.trim() || lib.id;
+        const libraryDisplayName =
+          lib.name?.trim() || libraryName.trim() || lib.id;
 
         spinnerStage = "fetching";
         spinnerLibrary = libraryDisplayName;
@@ -285,7 +300,8 @@ export default function (pi: ExtensionAPI) {
     },
 
     renderCall(args, theme) {
-      const lib = typeof args.libraryName === "string" ? args.libraryName : "...";
+      const lib =
+        typeof args.libraryName === "string" ? args.libraryName : "...";
       const query = typeof args.query === "string" ? args.query : "";
       const topic = typeof args.topic === "string" ? args.topic : "";
       const preview = shorten(topic ? `${query} ${topic}` : query, 60);
@@ -313,7 +329,9 @@ export default function (pi: ExtensionAPI) {
       if (isPartial) {
         const spinner = getSpinnerFrame(details?.spinnerIndex ?? 0);
         const stageLabel =
-          details?.stage === "fetching" ? "Fetching docs:" : "Searching libraries:";
+          details?.stage === "fetching"
+            ? "Fetching docs:"
+            : "Searching libraries:";
         const name = details?.libraryName ?? "...";
         const queryPreview = details?.queryPreview ?? "";
         let text =
@@ -332,7 +350,7 @@ export default function (pi: ExtensionAPI) {
           return new Text(
             `${theme.fg("error", "✗")} ${theme.fg("muted", "◇ Context7 error")}`,
             0,
-            0,
+            0
           );
         }
         const name = details?.libraryName ?? "unknown";
@@ -340,7 +358,7 @@ export default function (pi: ExtensionAPI) {
         return new Text(
           `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "◇ Context7 ")}${theme.fg("accent", name)} ${theme.fg("muted", id)}`,
           0,
-          0,
+          0
         );
       }
 
@@ -350,7 +368,8 @@ export default function (pi: ExtensionAPI) {
         : `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "◇ Context7")}`;
 
       // Truncate displayed output to keep TUI responsive
-      const preview = raw.length > 2000 ? raw.slice(0, 2000) + "\n…(truncated)" : raw;
+      const preview =
+        raw.length > 2000 ? raw.slice(0, 2000) + "\n…(truncated)" : raw;
       return new Text(`${header}\n${theme.fg("muted", preview)}`, 0, 0);
     },
   });

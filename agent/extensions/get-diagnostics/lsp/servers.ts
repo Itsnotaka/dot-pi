@@ -189,7 +189,10 @@ function resolveMarksmanServer(root: string): Resolved | null {
   return null;
 }
 
-const RESOLVERS: Record<DiagnosticsServerId, (root: string) => Resolved | null> = {
+const RESOLVERS: Record<
+  DiagnosticsServerId,
+  (root: string) => Resolved | null
+> = {
   tsserver: resolveTsServer,
   oxlint: resolveOxlintServer,
   eslint: resolveEslintServer,

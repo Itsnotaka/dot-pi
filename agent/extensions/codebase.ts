@@ -19,6 +19,7 @@ import { StringEnum } from "@mariozechner/pi-ai";
 import { Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { execSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   existsSync,
   lstatSync,
@@ -34,8 +35,6 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-
-import { createHash } from "node:crypto";
 
 const CLONE_ROOT = join(homedir(), "Library", "Caches", "pi", "codebases");
 const MARKER_FILE = ".codebase.json";
@@ -70,10 +69,7 @@ function computeCacheKey(
   return createHash("sha256").update(raw).digest("hex").slice(0, 16);
 }
 
-function findCachedClone(
-  cacheKey: string,
-  now: number
-): CloneInfo | null {
+function findCachedClone(cacheKey: string, now: number): CloneInfo | null {
   if (!existsSync(CLONE_ROOT)) return null;
   for (const entry of readdirSync(CLONE_ROOT)) {
     const dir = join(CLONE_ROOT, entry);
@@ -89,10 +85,7 @@ function findCachedClone(
   return null;
 }
 
-function reuseClone(
-  cached: CloneInfo,
-  targetSymlinkDir: string
-): CloneInfo {
+function reuseClone(cached: CloneInfo, targetSymlinkDir: string): CloneInfo {
   const id = generateId();
   mkdirSync(targetSymlinkDir, { recursive: true });
   const symlinkPath = join(targetSymlinkDir, id);

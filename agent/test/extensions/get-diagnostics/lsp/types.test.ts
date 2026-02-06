@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { prettyDiagnostic, Severity, type Diagnostic } from "../../../../extensions/get-diagnostics/lsp/types.ts";
+
+import {
+  prettyDiagnostic,
+  Severity,
+  type Diagnostic,
+} from "../../../../extensions/get-diagnostics/lsp/types.ts";
 
 describe("LSP types", () => {
   describe("Severity", () => {
@@ -69,7 +74,7 @@ describe("LSP types", () => {
       };
       const result = prettyDiagnostic("/src/index.ts", diag);
       expect(result).toBe(
-        "/src/index.ts:11:6 warning [6133] (ts): Variable is unused",
+        "/src/index.ts:11:6 warning [6133] (ts): Variable is unused"
       );
     });
 

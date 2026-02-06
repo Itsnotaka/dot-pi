@@ -1,8 +1,11 @@
 # dot-pi
 
-Personal configuration for [pi](https://github.com/badlogic/pi-mono), a terminal-based AI coding agent by [Mario Zechner](https://github.com/badlogic). This repo contains custom extensions, subagents, skills, themes, and prompts.
+Personal configuration for [pi](https://github.com/badlogic/pi-mono), a
+terminal-based AI coding agent by [Mario Zechner](https://github.com/badlogic).
+This repo contains custom extensions, subagents, skills, themes, and prompts.
 
-This is a dotfiles-style repo meant to be cloned into `~/.pi`. It is **not** an npm package. You need [pi](https://github.com/badlogic/pi-mono) installed first.
+This is a dotfiles-style repo meant to be cloned into `~/.pi`. It is **not** an
+npm package. You need [pi](https://github.com/badlogic/pi-mono) installed first.
 
 ## Quick Start
 
@@ -12,7 +15,8 @@ cd ~/.pi
 pnpm install
 ```
 
-Pi will automatically load extensions, agents, skills, themes, and prompts from `~/.pi/agent/`.
+Pi will automatically load extensions, agents, skills, themes, and prompts from
+`~/.pi/agent/`.
 
 ## Structure
 
@@ -61,7 +65,8 @@ pnpm fmt           # Format (oxfmt)
 
 ## Writing Extensions
 
-Extensions are TypeScript files in `agent/extensions/` that export a default factory function receiving the `ExtensionAPI`:
+Extensions are TypeScript files in `agent/extensions/` that export a default
+factory function receiving the `ExtensionAPI`:
 
 ```typescript
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
@@ -86,8 +91,10 @@ See `agent/skills/pi-development/` for the full extension API reference.
 
 ## Notes
 
-- `auth.json`, `settings.json`, and `sessions/` are gitignored — they contain credentials and local state.
-- Test files live in `agent/test/`, not alongside extensions, to prevent the extension loader from picking them up.
+- `auth.json`, `settings.json`, and `sessions/` are gitignored — they contain
+  credentials and local state.
+- Test files live in `agent/test/`, not alongside extensions, to prevent the
+  extension loader from picking them up.
 - Skills are auto-loaded into agent context based on task relevance.
 
 ## License

@@ -63,7 +63,7 @@ export default function (pi: ExtensionAPI) {
             const percent = usage.percent;
             let color: "success" | "error" | "warning" = "success";
             let hint = "";
-            
+
             if (percent > 80) {
               color = "error";
               hint = theme.fg("dim", " (consider /handoff)");

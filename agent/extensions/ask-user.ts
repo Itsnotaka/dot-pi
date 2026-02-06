@@ -35,7 +35,11 @@ export default function (pi: ExtensionAPI) {
             maxItems: 4,
           }),
         }),
-        { description: "1-4 questions to ask the user", minItems: 1, maxItems: 4 },
+        {
+          description: "1-4 questions to ask the user",
+          minItems: 1,
+          maxItems: 4,
+        }
       ),
     }),
 
@@ -63,7 +67,7 @@ export default function (pi: ExtensionAPI) {
         const q = questions[i];
         const deduplicated = [...new Set(q.options.filter((o) => o.trim()))];
         const filtered = deduplicated.filter(
-          (o) => o.toLowerCase() !== OWN_ANSWER.toLowerCase(),
+          (o) => o.toLowerCase() !== OWN_ANSWER.toLowerCase()
         );
         questions[i].options = filtered;
         if (filtered.length < 2)
@@ -90,10 +94,7 @@ export default function (pi: ExtensionAPI) {
       for (let i = 0; i < questions.length; i++) {
         const q = questions[i];
         const prompt = `${q.topic}\n${q.question}`;
-        const choice = await ctx.ui.select(prompt, [
-          ...q.options,
-          OWN_ANSWER,
-        ]);
+        const choice = await ctx.ui.select(prompt, [...q.options, OWN_ANSWER]);
 
         if (!choice) {
           return {
@@ -142,7 +143,7 @@ export default function (pi: ExtensionAPI) {
       }
 
       const lines = answers.map(
-        (a) => `${a.index}. [${a.topic}] ${a.question} → ${a.answer}`,
+        (a) => `${a.index}. [${a.topic}] ${a.question} → ${a.answer}`
       );
 
       return {
@@ -168,7 +169,7 @@ export default function (pi: ExtensionAPI) {
         return new Text(
           `${theme.fg("success", "✓")} ${theme.fg("muted", label)}`,
           0,
-          0,
+          0
         );
       }
 

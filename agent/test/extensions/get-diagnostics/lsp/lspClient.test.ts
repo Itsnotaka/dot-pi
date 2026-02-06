@@ -4,9 +4,11 @@ import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getDiagnosticsForFile } from "../../../../extensions/get-diagnostics/lsp/lspClient.ts";
+
 import type { LspServer } from "../../../../extensions/get-diagnostics/lsp/servers.ts";
+
 import { createConnection } from "../../../../extensions/get-diagnostics/lsp/jsonrpc.ts";
+import { getDiagnosticsForFile } from "../../../../extensions/get-diagnostics/lsp/lspClient.ts";
 
 function createMockProcess() {
   const stdin = new PassThrough();
@@ -158,7 +160,9 @@ describe("getDiagnosticsForFile", () => {
       expect(allSent).toContain("textDocument/didOpen");
       expect(allSent).toContain("textDocument/diagnostic");
 
-      const diagRequestMatch = allSent.match(/"id":(\d+).*?"textDocument\/diagnostic"/);
+      const diagRequestMatch = allSent.match(
+        /"id":(\d+).*?"textDocument\/diagnostic"/
+      );
       expect(diagRequestMatch).not.toBeNull();
       const requestId = parseInt(diagRequestMatch![1], 10);
 

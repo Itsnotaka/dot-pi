@@ -10,11 +10,11 @@
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+
 import {
   isEditToolResult,
   isWriteToolResult,
 } from "@mariozechner/pi-coding-agent";
-
 import { execFileSync } from "child_process";
 import { existsSync } from "fs";
 import { dirname, extname, isAbsolute, join, parse, resolve } from "path";
@@ -106,9 +106,7 @@ function findBinUpward(root: string, bin: string): string | null {
 
 function resolveLocalOrGlobal(root: string, bin: string): string | null {
   return (
-    findBinUpward(root, bin) ??
-    findBinUpward(EXTENSION_DIR, bin) ??
-    which(bin)
+    findBinUpward(root, bin) ?? findBinUpward(EXTENSION_DIR, bin) ?? which(bin)
   );
 }
 

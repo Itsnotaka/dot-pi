@@ -2,6 +2,7 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
+
 import { isToolCallEventType } from "@mariozechner/pi-coding-agent";
 
 type Quote = "'" | '"' | "`";
