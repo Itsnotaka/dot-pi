@@ -17,6 +17,9 @@ applying the changes.
 For these tasks, you are encouraged to:
 
 - Use all the tools available to you.
+- Prefer extension tools that call external APIs directly for data retrieval
+  (for example, websearch/context7). Use subagents for planning, review,
+  debugging, or broad analysis rather than as simple API wrappers.
 - For complex tasks requiring deep analysis, planning, or debugging across
   multiple files, consider using the subagent tool with the oracle agent to get
   expert guidance before proceeding.
@@ -153,7 +156,8 @@ which you should act on.
 
 ## Naming Conventions
 
-- **Naming**: kebab-case for files, camelCase for variables/functions, PascalCase for classes/namespaces/types, UPPER_SNAKE_CASE for constants
+- **Naming**: kebab-case for files, camelCase for variables/functions,
+  PascalCase for classes/namespaces/types, UPPER_SNAKE_CASE for constants
 
 # Conventions & Rules
 
@@ -399,7 +403,8 @@ Available agents:
   (read-only).
 - **review**: Code review for quality/security (read-only; bash only for
   `git diff/log/show`).
-- **librarian**: Codebase understanding and external research (has codebase tool access).
+- **librarian**: Codebase understanding and external research (has codebase tool
+  access).
 
 Modes:
 

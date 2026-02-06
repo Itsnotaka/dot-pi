@@ -12,14 +12,15 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 import { Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
+
+import {
+  createSpinnerTicker,
+  getSpinnerFrame,
+  resolveApiKey,
+  SETTINGS_PATH,
+} from "../shared/web-infra.js";
 
 const BASE_URL = "https://context7.com/api";
-const SETTINGS_PATH = path.join(os.homedir(), ".pi", "agent", "settings.json");
-const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-const SPINNER_INTERVAL_MS = 80;
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -36,7 +37,8 @@ type Library = {
 type ApiSearchResponse = {
   results: Array<{
     id: string;
-    name: string;
+    title?: string;
+    name?: string;
     description: string;
     totalSnippets: number;
     trustScore: number;
@@ -62,19 +64,7 @@ type SpinnerDetails = {
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function loadApiKey(): string | null {
-  // Check settings.json first
-  try {
-    const raw = fs.readFileSync(SETTINGS_PATH, "utf-8");
-    const data = JSON.parse(raw) as { context7?: { apiKey?: unknown } };
-    const key = data.context7?.apiKey;
-    if (typeof key === "string" && key.trim()) return key.trim();
-  } catch {
-    // fall through
-  }
-  // Then env var
-  const envKey = process.env.CONTEXT7_API_KEY;
-  if (envKey?.trim()) return envKey.trim();
-  return null;
+  return resolveApiKey("context7", "CONTEXT7_API_KEY");
 }
 
 function shorten(text: string, max: number): string {
@@ -84,7 +74,7 @@ function shorten(text: string, max: number): string {
 async function apiGet<T>(
   endpoint: string,
   query: Record<string, string | number | undefined>,
-  apiKey: string
+  apiKey: string,
 ): Promise<T> {
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(query)) {
@@ -108,16 +98,12 @@ async function apiGet<T>(
 async function searchLibraries(
   apiKey: string,
   query: string,
-  libraryName: string
+  libraryName: string,
 ): Promise<Library[]> {
-  const data = await apiGet<ApiSearchResponse>(
-    "v2/libs/search",
-    { query, libraryName },
-    apiKey
-  );
+  const data = await apiGet<ApiSearchResponse>("v2/libs/search", { query, libraryName }, apiKey);
   return data.results.map((r) => ({
     id: r.id,
-    name: r.name,
+    name: r.title || r.name || r.id,
     description: r.description,
     totalSnippets: r.totalSnippets,
     trustScore: r.trustScore,
@@ -126,11 +112,7 @@ async function searchLibraries(
   }));
 }
 
-async function getContext(
-  apiKey: string,
-  query: string,
-  libraryId: string
-): Promise<string> {
+async function getContext(apiKey: string, query: string, libraryId: string): Promise<string> {
   const params = new URLSearchParams();
   params.append("query", query);
   params.append("libraryId", libraryId);
@@ -163,8 +145,7 @@ export default function (pi: ExtensionAPI) {
       "Returns version-specific docs and working code examples pulled directly from official sources.",
     parameters: Type.Object({
       libraryName: Type.String({
-        description:
-          "Name of the library/package to search (e.g. 'react', 'next.js', 'express')",
+        description: "Name of the library/package to search (e.g. 'react', 'next.js', 'express')",
       }),
       query: Type.String({
         description:
@@ -172,14 +153,13 @@ export default function (pi: ExtensionAPI) {
       }),
       topic: Type.Optional(
         Type.String({
-          description:
-            "Optional topic filter (e.g. 'routing', 'hooks', 'middleware')",
-        })
+          description: "Optional topic filter (e.g. 'routing', 'hooks', 'middleware')",
+        }),
       ),
       tokens: Type.Optional(
         Type.Number({
           description: "Max tokens of documentation to return (default 5000)",
-        })
+        }),
       ),
     }),
 
@@ -194,7 +174,13 @@ export default function (pi: ExtensionAPI) {
               text: `Missing Context7 API key. Set it in ${SETTINGS_PATH} under context7.apiKey, or set CONTEXT7_API_KEY env var.\nGet a free key at https://context7.com/dashboard`,
             },
           ],
-          details: { ok: false },
+          details: {
+            ok: false,
+            mode: "docs",
+            provider: "context7",
+            fallbackUsed: false,
+            degraded: false,
+          },
           isError: true,
         };
       }
@@ -202,49 +188,35 @@ export default function (pi: ExtensionAPI) {
       const searchQuery = topic ? `${query} ${topic}` : query;
       const queryPreview = shorten(searchQuery, 60);
       const canAnimate = !!onUpdate && ctx.hasUI;
-      let spinnerIndex = 0;
       let spinnerStage: SpinnerDetails["stage"] = "searching";
       let spinnerLibrary = libraryName;
-      let spinnerTimer: ReturnType<typeof setInterval> | undefined;
 
-      const stopSpinner = () => {
-        if (spinnerTimer) {
-          clearInterval(spinnerTimer);
-          spinnerTimer = undefined;
-        }
-      };
+      const stopSpinner = createSpinnerTicker(
+        canAnimate,
+        (spinnerIndex) => {
+          const label =
+            spinnerStage === "fetching"
+              ? `Fetching docs: ${spinnerLibrary}`
+              : `Searching libraries: ${spinnerLibrary} — ${queryPreview}`;
 
-      const emitSpinnerUpdate = () => {
-        if (!onUpdate || !canAnimate) return;
-        const label =
-          spinnerStage === "fetching"
-            ? `Fetching docs: ${spinnerLibrary}`
-            : `Searching libraries: ${spinnerLibrary} — ${queryPreview}`;
-        onUpdate({
-          content: [{ type: "text", text: label }],
-          details: {
-            stage: spinnerStage,
-            libraryName: spinnerLibrary,
-            queryPreview,
-            spinnerIndex,
-          } as SpinnerDetails,
-        });
-        spinnerIndex = (spinnerIndex + 1) % SPINNER_FRAMES.length;
-      };
+          onUpdate?.({
+            content: [{ type: "text", text: label }],
+            details: {
+              stage: spinnerStage,
+              libraryName: spinnerLibrary,
+              queryPreview,
+              spinnerIndex,
+            } as SpinnerDetails,
+          });
+        },
+        signal,
+      );
 
-      if (canAnimate) {
-        emitSpinnerUpdate();
-        spinnerTimer = setInterval(emitSpinnerUpdate, SPINNER_INTERVAL_MS);
-        signal?.addEventListener("abort", stopSpinner, { once: true });
-      }
+      const startedAt = Date.now();
 
       try {
         // Step 1: resolve library ID
-        const libraries = await searchLibraries(
-          apiKey,
-          searchQuery,
-          libraryName
-        );
+        const libraries = await searchLibraries(apiKey, searchQuery, libraryName);
 
         if (!libraries.length) {
           return {
@@ -254,36 +226,57 @@ export default function (pi: ExtensionAPI) {
                 text: `No libraries found matching "${libraryName}".`,
               },
             ],
-            details: { ok: true, count: 0 },
+            details: {
+              ok: true,
+              mode: "docs",
+              provider: "context7",
+              fallbackUsed: false,
+              degraded: false,
+              count: 0,
+              latencyMs: Date.now() - startedAt,
+            },
           };
         }
 
         // Pick best match (first result, highest ranked by Context7)
         const lib = libraries[0];
+        const libraryDisplayName = lib.name?.trim() || libraryName.trim() || lib.id;
 
         spinnerStage = "fetching";
-        spinnerLibrary = lib.name;
-        emitSpinnerUpdate();
+        spinnerLibrary = libraryDisplayName;
 
         // Step 2: get documentation
         const docs = await getContext(apiKey, searchQuery, lib.id);
 
-        const header = `Library: ${lib.name} (${lib.id})\nSnippets: ${lib.totalSnippets} | Trust: ${lib.trustScore}/10\n${lib.description}\n${"─".repeat(60)}\n`;
+        const header = `Library: ${libraryDisplayName} (${lib.id})\nSnippets: ${lib.totalSnippets} | Trust: ${lib.trustScore}/10\n${lib.description}\n${"─".repeat(60)}\n`;
         const result = header + docs;
 
         return {
           content: [{ type: "text", text: result }],
           details: {
             ok: true,
+            mode: "docs",
+            provider: "context7",
+            fallbackUsed: false,
+            degraded: false,
             libraryId: lib.id,
-            libraryName: lib.name,
+            libraryName: libraryDisplayName,
             matchCount: libraries.length,
+            latencyMs: Date.now() - startedAt,
           },
         };
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
         return {
-          content: [{ type: "text", text: `Context7 error: ${err.message}` }],
-          details: { ok: false },
+          content: [{ type: "text", text: `Context7 error: ${message}` }],
+          details: {
+            ok: false,
+            mode: "docs",
+            provider: "context7",
+            fallbackUsed: false,
+            degraded: false,
+            latencyMs: Date.now() - startedAt,
+          },
           isError: true,
         };
       } finally {
@@ -292,8 +285,7 @@ export default function (pi: ExtensionAPI) {
     },
 
     renderCall(args, theme) {
-      const lib =
-        typeof args.libraryName === "string" ? args.libraryName : "...";
+      const lib = typeof args.libraryName === "string" ? args.libraryName : "...";
       const query = typeof args.query === "string" ? args.query : "";
       const topic = typeof args.topic === "string" ? args.topic : "";
       const preview = shorten(topic ? `${query} ${topic}` : query, 60);
@@ -319,13 +311,9 @@ export default function (pi: ExtensionAPI) {
       const raw = content?.type === "text" ? content.text : "(no results)";
 
       if (isPartial) {
-        const spinnerIndex = details?.spinnerIndex ?? 0;
-        const spinner =
-          SPINNER_FRAMES[spinnerIndex % SPINNER_FRAMES.length] ?? "⠋";
+        const spinner = getSpinnerFrame(details?.spinnerIndex ?? 0);
         const stageLabel =
-          details?.stage === "fetching"
-            ? "Fetching docs:"
-            : "Searching libraries:";
+          details?.stage === "fetching" ? "Fetching docs:" : "Searching libraries:";
         const name = details?.libraryName ?? "...";
         const queryPreview = details?.queryPreview ?? "";
         let text =
@@ -344,7 +332,7 @@ export default function (pi: ExtensionAPI) {
           return new Text(
             `${theme.fg("error", "✗")} ${theme.fg("muted", "◇ Context7 error")}`,
             0,
-            0
+            0,
           );
         }
         const name = details?.libraryName ?? "unknown";
@@ -352,7 +340,7 @@ export default function (pi: ExtensionAPI) {
         return new Text(
           `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "◇ Context7 ")}${theme.fg("accent", name)} ${theme.fg("muted", id)}`,
           0,
-          0
+          0,
         );
       }
 
@@ -362,8 +350,7 @@ export default function (pi: ExtensionAPI) {
         : `${theme.fg("success", "✓")} ${theme.fg("toolTitle", "◇ Context7")}`;
 
       // Truncate displayed output to keep TUI responsive
-      const preview =
-        raw.length > 2000 ? raw.slice(0, 2000) + "\n…(truncated)" : raw;
+      const preview = raw.length > 2000 ? raw.slice(0, 2000) + "\n…(truncated)" : raw;
       return new Text(`${header}\n${theme.fg("muted", preview)}`, 0, 0);
     },
   });
