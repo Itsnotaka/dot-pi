@@ -12,16 +12,16 @@
   },
   "devDependencies": {
     "@anthropic-ai/sandbox-runtime": "^0.0.34",
-    "@mariozechner/pi-agent-core": "^0.51.6",
-    "@mariozechner/pi-ai": "^0.51.6",
-    "@mariozechner/pi-coding-agent": "^0.51.6",
-    "@mariozechner/pi-tui": "^0.51.6",
+    "@mariozechner/pi-agent-core": "^0.52.9",
+    "@mariozechner/pi-ai": "^0.52.9",
+    "@mariozechner/pi-coding-agent": "^0.52.9",
+    "@mariozechner/pi-tui": "^0.52.9",
     "@sinclair/typebox": "^0.34.48",
-    "@types/node": "^25.2.1",
-    "@typescript/native-preview": "^7.0.0-dev.20260206.1",
+    "@types/node": "^25.2.2",
+    "@typescript/native-preview": "^7.0.0-dev.20260209.1",
     "oxfmt": "^0.28.0",
     "oxlint": "^1.43.0",
-    "oxlint-tsgolint": "^0.11.4",
+    "oxlint-tsgolint": "^0.11.5",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   }
