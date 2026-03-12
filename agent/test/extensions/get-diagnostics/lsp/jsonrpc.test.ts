@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,18 +8,18 @@ import {
 } from "../../../../extensions/get-diagnostics/lsp/jsonrpc.ts";
 
 function createMockProcess() {
+  const emitter = new EventEmitter();
   const stdin = new PassThrough();
   const stdout = new PassThrough();
-  const proc = {
+  const stderr = new PassThrough();
+  return Object.assign(emitter, {
     stdin,
     stdout,
-    stderr: new PassThrough(),
+    stderr,
     kill: vi.fn(),
     killed: false,
     pid: 12345,
-    on: vi.fn(),
-  };
-  return proc;
+  });
 }
 
 function sendLspMessage(stdout: PassThrough, msg: unknown) {
@@ -152,9 +153,9 @@ describe("JSON-RPC connection", () => {
     it("handles server-initiated requests and responds", async () => {
       conn.onRequest = async (method, _params) => {
         if (method === "workspace/configuration") {
-          return [{ validate: "on" }];
+          return { kind: "result", value: [{ validate: "on" }] };
         }
-        return null;
+        return { kind: "result", value: null };
       };
 
       sendLspMessage(proc.stdout, {
@@ -171,7 +172,7 @@ describe("JSON-RPC connection", () => {
       await new Promise((r) => setTimeout(r, 10));
     });
 
-    it("responds with null when no request handler", async () => {
+    it("responds with method-not-found when no request handler", async () => {
       const chunks: Buffer[] = [];
       proc.stdin.on("data", (chunk: Buffer) => chunks.push(chunk));
 
@@ -186,7 +187,7 @@ describe("JSON-RPC connection", () => {
 
       const sent = Buffer.concat(chunks).toString("utf8");
       expect(sent).toContain('"id":200');
-      expect(sent).toContain('"result":null');
+      expect(sent).toContain('"error":{"code":-32601');
     });
   });
 
@@ -199,6 +200,15 @@ describe("JSON-RPC connection", () => {
 
       await expect(p1).rejects.toThrow("disposed");
       await expect(p2).rejects.toThrow("disposed");
+    });
+
+    it("rejects pending requests when the LSP process exits", async () => {
+      const promise = conn.sendRequest("method1", {});
+
+      proc.stderr.write("server crashed");
+      proc.emit("exit", 1, null);
+
+      await expect(promise).rejects.toThrow("server crashed");
     });
   });
 

@@ -48,8 +48,15 @@ export async function getDiagnosticsForFile(
     return [];
   }
 
+  const minVersion = server.diagnosticVersions.get(file) ?? 0;
+  server.diagnostics.delete(file);
+
   server.conn.sendNotification("textDocument/didOpen", {
     textDocument: { uri, languageId, version: 1, text },
+  });
+  server.conn.sendNotification("textDocument/didSave", {
+    textDocument: { uri },
+    text,
   });
 
   let diagnostics: Diagnostic[];
@@ -57,8 +64,7 @@ export async function getDiagnosticsForFile(
   if (server.pullDiagnostics) {
     diagnostics = await pullDiagnostics(server, uri);
   } else {
-    await waitForDiagnostics(server, file);
-    diagnostics = server.diagnostics.get(file) ?? [];
+    diagnostics = await waitForDiagnostics(server, file, minVersion);
   }
 
   server.conn.sendNotification("textDocument/didClose", {
@@ -87,21 +93,31 @@ async function pullDiagnostics(
   }
 }
 
-function waitForDiagnostics(server: LspServer, file: string): Promise<void> {
-  return new Promise<void>((resolve) => {
+function waitForDiagnostics(
+  server: LspServer,
+  file: string,
+  minVersion: number
+): Promise<Diagnostic[]> {
+  return new Promise<Diagnostic[]>((resolve) => {
     let debounce: ReturnType<typeof setTimeout> | null = null;
 
-    const timeout = setTimeout(() => {
-      cleanup();
-      resolve();
-    }, DIAGNOSTICS_TIMEOUT_MS);
-
-    const cb = () => {
+    const maybeResolve = () => {
+      const version = server.diagnosticVersions.get(file) ?? 0;
+      if (version <= minVersion) return;
       if (debounce) clearTimeout(debounce);
       debounce = setTimeout(() => {
         cleanup();
-        resolve();
+        resolve(server.diagnostics.get(file) ?? []);
       }, DIAGNOSTICS_DEBOUNCE_MS);
+    };
+
+    const timeout = setTimeout(() => {
+      cleanup();
+      resolve(server.diagnostics.get(file) ?? []);
+    }, DIAGNOSTICS_TIMEOUT_MS);
+
+    const cb = () => {
+      maybeResolve();
     };
 
     function cleanup() {
@@ -117,5 +133,6 @@ function waitForDiagnostics(server: LspServer, file: string): Promise<void> {
 
     if (!server.waiters.has(file)) server.waiters.set(file, []);
     server.waiters.get(file)!.push(cb);
+    maybeResolve();
   });
 }

@@ -115,7 +115,8 @@ Use oracle frequently for architecture decisions, implementation plans,
 debugging strategy, and self-review on non-trivial changes.
 
 Mention to the user why you invoke the oracle. Use language such as "I'm going
-to ask the oracle for advice" or "I need to consult with the oracle."
+to ask the oracle for advice" or "I need to consult with the oracle." Do not
+pause for user approval before invoking the oracle; continue proactively.
 
 IMPORTANT: Treat the oracle's response as an advisory opinion, not a directive.
 After receiving the oracle's response, do an independent investigation using the

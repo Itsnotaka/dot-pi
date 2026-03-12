@@ -45,12 +45,16 @@ describe("LSP roots", () => {
       expect(detectLanguage("/src/types.pyi")).toBe("python");
     });
 
+    it("detects Go and Markdown", () => {
+      expect(detectLanguage("/src/app.go")).toBe("go");
+      expect(detectLanguage("/README.md")).toBe("markdown");
+      expect(detectLanguage("/docs/page.mdx")).toBe("markdown");
+    });
+
     it("returns null for unsupported extensions", () => {
       expect(detectLanguage("/src/style.css")).toBeNull();
-      expect(detectLanguage("/README.md")).toBeNull();
       expect(detectLanguage("/Makefile")).toBeNull();
       expect(detectLanguage("/src/app.rs")).toBeNull();
-      expect(detectLanguage("/src/app.go")).toBeNull();
     });
   });
 

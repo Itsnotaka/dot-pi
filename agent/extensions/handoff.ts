@@ -1,56 +1,97 @@
 /**
  * Handoff extension — transfer context to a new focused session.
  *
- * Generates a prompt for a new session using the current conversation and goal.
- *
  * Usage:
  *   /handoff now implement this for teams as well
  *   /handoff execute phase one of the created plan
  *   /handoff check the rest of the codebase for this fix
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, SessionEntry } from "@mariozechner/pi-coding-agent";
 
-import { complete, type Message } from "@mariozechner/pi-ai";
-import {
-  BorderedLoader,
-  convertToLlm,
-  serializeConversation,
-} from "@mariozechner/pi-coding-agent";
+const HANDOFF_INSTRUCTIONS = `You are writing a handoff note for another AI agent with no access to this chat.
 
-const SYSTEM_PROMPT = `You generate handoff prompts. A handoff transfers context from this conversation into a new, blank thread. The new thread has ZERO prior context — your output is all it gets.
+Extract only task-relevant context from this conversation.
 
 Rules:
-- Output ONLY the prompt. No preamble, no "Here's the prompt", no wrapping.
-- Be selective, but not vague: include the concrete details the new thread needs to execute the stated goal.
-- Never summarize the whole conversation. Extract only what is relevant to the goal.
-- Include concrete details: exact file paths, function names, type signatures, API shapes, error messages, config values. Vague references like "the auth module" are useless without a path.
-- State decisions as facts, not history.
-- If code patterns or conventions were established, show a brief example rather than describing them.
-- The task must be specific and actionable.
+- Be concise and concrete.
+- Include exact file paths, symbols, commands, errors, and decisions when relevant.
+- Keep only information needed to continue the work.
+- Do not invent missing details.
+- If a critical detail is unknown, state that briefly.
+- Do not call tools.
 
-Special case — plan phases:
-- If the user's goal involves executing a specific plan phase (e.g. "execute phase 1"), expand that phase into a detailed, ordered implementation checklist with concrete steps, file paths, and commands to run.
+Output format:
+- Plain markdown.
+- Include sections: Context, Files, Task.
+- In Task, provide specific next actions.`;
 
-Perspective:
-- In the "## Context" section only, write from first-person perspective ("I did...", "I found...").
-- In all other sections, write directly as instructions for the new thread (imperative voice).
+type HandoffExtractionResult = { kind: "ok"; text: string } | { kind: "error"; message: string };
 
-Format:
+function extractAssistantText(entries: SessionEntry[], fromIndex: number): HandoffExtractionResult {
+  for (let i = entries.length - 1; i >= fromIndex; i--) {
+    const entry = entries[i];
 
-## Context
+    if (entry.type !== "message") {
+      continue;
+    }
 
-[Concise, relevant-only background. Bullet points for decisions/constraints/findings.]
+    const message = entry.message;
+    if (message.role !== "assistant") {
+      continue;
+    }
 
-## Files
+    if (message.stopReason === "aborted") {
+      return { kind: "error", message: "Handoff generation was cancelled." };
+    }
 
-[Only files the new thread needs to read or modify. Max 10. Most important first.]
-- path/to/file.ts — what's relevant about it
-- path/to/other.ts
+    if (message.stopReason === "error") {
+      return {
+        kind: "error",
+        message: message.errorMessage?.trim() || "Handoff generation failed.",
+      };
+    }
 
-## Task
+    const text = message.content
+      .flatMap((part) => (part.type === "text" ? [part.text] : []))
+      .join("\n")
+      .trim();
 
-[Specific, actionable goal. Include a step-by-step checklist when appropriate. Include acceptance criteria or scope boundaries when they exist.]`;
+    if (!text) {
+      continue;
+    }
+
+    return { kind: "ok", text };
+  }
+
+  return { kind: "error", message: "Failed to capture handoff note from the assistant response." };
+}
+
+async function waitForHandoffTurnToStart(
+  ctx: {
+    isIdle: () => boolean;
+    hasPendingMessages: () => boolean;
+    sessionManager: { getBranch: () => SessionEntry[] };
+  },
+  branchLengthBefore: number,
+  timeoutMs = 5000,
+): Promise<boolean> {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    if (
+      !ctx.isIdle() ||
+      ctx.hasPendingMessages() ||
+      ctx.sessionManager.getBranch().length > branchLengthBefore
+    ) {
+      return true;
+    }
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 25));
+  }
+
+  return false;
+}
 
 export default function (pi: ExtensionAPI) {
   pi.registerCommand("handoff", {
@@ -66,12 +107,17 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
+      if (!ctx.isIdle() || ctx.hasPendingMessages()) {
+        ctx.ui.notify(
+          "Please wait for the current turn to finish before running /handoff.",
+          "error",
+        );
+        return;
+      }
+
       let goal = args.trim();
       if (!goal) {
-        const input = await ctx.ui.input(
-          "Handoff goal",
-          "What should the new thread accomplish?"
-        );
+        const input = await ctx.ui.input("Handoff goal", "What should the new thread accomplish?");
         if (!input) {
           return;
         }
@@ -81,75 +127,29 @@ export default function (pi: ExtensionAPI) {
         }
       }
 
-      const branch = ctx.sessionManager.getBranch();
-      const messages = branch.flatMap((entry) =>
-        entry.type === "message" ? [entry.message] : []
-      );
-
-      if (messages.length === 0) {
-        ctx.ui.notify("No conversation to hand off", "error");
-        return;
-      }
-
-      const llmMessages = convertToLlm(messages);
-      const conversationText = serializeConversation(llmMessages);
       const currentSessionFile = ctx.sessionManager.getSessionFile();
+      const branchLengthBefore = ctx.sessionManager.getBranch().length;
+      const handoffRequest = `${HANDOFF_INSTRUCTIONS}\n\nGoal for the next thread:\n${goal}`;
 
-      const result = await ctx.ui.custom<string | null>(
-        (tui, theme, _kb, done) => {
-          const loader = new BorderedLoader(
-            tui,
-            theme,
-            `Generating handoff prompt...`
-          );
-          loader.onAbort = () => done(null);
+      pi.sendUserMessage(handoffRequest);
+      ctx.ui.notify("Generating handoff note...", "info");
 
-          const doGenerate = async () => {
-            const apiKey = await ctx.modelRegistry.getApiKey(ctx.model!);
-
-            const userMessage: Message = {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: `## Conversation History\n\n${conversationText}\n\n## User's Goal for New Thread\n\n${goal}`,
-                },
-              ],
-              timestamp: Date.now(),
-            };
-
-            const response = await complete(
-              ctx.model!,
-              { systemPrompt: SYSTEM_PROMPT, messages: [userMessage] },
-              { apiKey, signal: loader.signal }
-            );
-
-            if (response.stopReason === "aborted") {
-              return null;
-            }
-
-            return response.content
-              .flatMap((c) => (c.type === "text" ? [c.text] : []))
-              .join("\n");
-          };
-
-          doGenerate()
-            .then(done)
-            .catch((err) => {
-              console.error("Handoff generation failed:", err);
-              done(null);
-            });
-
-          return loader;
-        }
-      );
-
-      if (result === null) {
-        ctx.ui.notify("Cancelled", "info");
+      const started = await waitForHandoffTurnToStart(ctx, branchLengthBefore);
+      if (!started) {
+        ctx.ui.notify("Handoff generation did not start in time.", "error");
         return;
       }
 
-      const editedPrompt = await ctx.ui.editor("Edit handoff prompt", result);
+      await ctx.waitForIdle();
+
+      const extraction = extractAssistantText(ctx.sessionManager.getBranch(), branchLengthBefore);
+      if (extraction.kind === "error") {
+        ctx.ui.notify(`Handoff failed: ${extraction.message}`, "error");
+        return;
+      }
+
+      const initialPrompt = `${extraction.text}\n\n## Task\n\n${goal}`;
+      const editedPrompt = await ctx.ui.editor("Edit handoff prompt", initialPrompt);
 
       if (editedPrompt === undefined) {
         ctx.ui.notify("Cancelled", "info");
@@ -166,6 +166,7 @@ export default function (pi: ExtensionAPI) {
       }
 
       ctx.ui.setEditorText(editedPrompt);
+      ctx.ui.notify("Handoff ready. Submit when ready.", "info");
     },
   });
 }

@@ -1,10 +1,11 @@
 # Parallel Websearch Extension
 
-Registers a `websearch` tool that calls Parallel's Search API.
+Registers a `websearch` tool powered by `parallel-cli`.
 
 ## Requirements
 
-- Set `PARALLEL_API_KEY` in your environment.
+- Install `parallel-cli`
+- Authenticate with `parallel-cli login`
 
 ## Usage
 

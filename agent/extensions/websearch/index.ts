@@ -1,32 +1,23 @@
 /**
- * Parallel Search + URL extraction tool.
- *
- * - Search mode: Parallel Search API (primary)
- * - URL mode: Parallel Extract API (primary) with Gemini fallback
+ * Parallel Search + URL extraction tool powered by parallel-cli.
  */
 
 import type { ExtensionAPI, Theme } from "@mariozechner/pi-coding-agent";
 
 import { Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
-import {
-  createSpinnerTicker,
-  getSpinnerFrame,
-  resolveApiKey,
-  resolveSettingString,
-  SETTINGS_PATH,
-} from "../shared/web-infra.js";
+import { createSpinnerTicker, getSpinnerFrame } from "../shared/web-infra.js";
+
+const execFileAsync = promisify(execFile);
 
 const DEFAULT_MAX_RESULTS = 5;
 const DEFAULT_MAX_CHARS = 1500;
-const PARALLEL_SEARCH_API_URL = "https://api.parallel.ai/v1beta/search";
-const PARALLEL_EXTRACT_API_URL = "https://api.parallel.ai/v1beta/extract";
-const PARALLEL_BETA_HEADER = "search-extract-2025-10-10";
-const GEMINI_MODEL = "gemini-3-flash";
-const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 const MAX_INLINE_CONTENT = 30_000;
-const GEMINI_TIMEOUT_MS = 60_000;
+const PARALLEL_CLI_COMMAND = "parallel-cli";
+const EXEC_MAX_BUFFER = 10 * 1024 * 1024;
 
 type SearchResult = {
   url: string;
@@ -36,6 +27,7 @@ type SearchResult = {
 };
 
 type SearchResponse = {
+  status?: string;
   search_id?: string;
   results?: SearchResult[];
   warnings?: unknown;
@@ -56,6 +48,7 @@ type ExtractError = {
 };
 
 type ExtractResponse = {
+  status?: string;
   extract_id?: string;
   results?: ExtractResult[];
   errors?: ExtractError[];
@@ -74,14 +67,6 @@ type SpinnerDetails = {
   preview: string;
 };
 
-type GeminiResponse = {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{ text?: string }>;
-    };
-  }>;
-};
-
 type ExtractSuccess = {
   ok: true;
   title: string | null;
@@ -92,7 +77,6 @@ type ExtractSuccess = {
 type ExtractFailure = {
   ok: false;
   status?: number;
-  recoverable: boolean;
   message: string;
 };
 
@@ -126,14 +110,6 @@ function isUrl(text: string): boolean {
   return /^https?:\/\/\S+$/i.test(trimmed);
 }
 
-function getParallelApiKey(): string | null {
-  return resolveApiKey("websearch", "PARALLEL_API_KEY");
-}
-
-function getGeminiApiKey(): string | null {
-  return resolveSettingString("websearch", "geminiApiKey", "GEMINI_API_KEY");
-}
-
 function readErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);
@@ -155,30 +131,165 @@ function truncateContent(content: string): {
   };
 }
 
-function isRecoverableStatus(status: number | undefined): boolean {
-  if (status === undefined) return true;
-  return (
-    status === 408 ||
-    status === 409 ||
-    status === 425 ||
-    status === 429 ||
-    status >= 500
-  );
+async function runParallelCli(
+  args: string[],
+  signal?: AbortSignal
+): Promise<
+  | {
+      ok: true;
+      stdout: string;
+      stderr: string;
+    }
+  | {
+      ok: false;
+      status?: number;
+      message: string;
+      stderr?: string;
+    }
+> {
+  try {
+    const { stdout, stderr } = await execFileAsync(PARALLEL_CLI_COMMAND, args, {
+      encoding: "utf8",
+      maxBuffer: EXEC_MAX_BUFFER,
+      signal,
+    });
+
+    return {
+      ok: true,
+      stdout,
+      stderr,
+    };
+  } catch (err: unknown) {
+    const error = err as NodeJS.ErrnoException & {
+      code?: string | number;
+      stdout?: string;
+      stderr?: string;
+    };
+
+    if (signal?.aborted) {
+      return {
+        ok: false,
+        message: "Parallel CLI request was aborted.",
+      };
+    }
+
+    if (error.code === "ENOENT") {
+      return {
+        ok: false,
+        message:
+          "parallel-cli is not installed or not in PATH. Install it, then run `parallel-cli login`.",
+      };
+    }
+
+    const errorCode = (error as { code?: unknown }).code;
+    const status = typeof errorCode === "number" ? errorCode : undefined;
+    const stderr = typeof error.stderr === "string" ? error.stderr.trim() : "";
+    const stdout = typeof error.stdout === "string" ? error.stdout.trim() : "";
+    const detail = stderr || stdout || readErrorMessage(err);
+
+    return {
+      ok: false,
+      status,
+      message:
+        `parallel-cli ${args[0] ?? "command"} failed` +
+        (status !== undefined ? ` (${status})` : "") +
+        `: ${detail}`,
+      stderr,
+    };
+  }
 }
 
-function isRecoverableParallelExtractFailure(error: ExtractError): boolean {
-  return isRecoverableStatus(error.http_status_code);
+async function runParallelCliJson<T>(
+  args: string[],
+  signal?: AbortSignal
+): Promise<
+  | {
+      ok: true;
+      data: T;
+    }
+  | {
+      ok: false;
+      status?: number;
+      message: string;
+      stderr?: string;
+    }
+> {
+  const result = await runParallelCli(args, signal);
+  if (!result.ok) return result;
+
+  const raw = result.stdout.trim();
+  if (!raw) {
+    return {
+      ok: false,
+      message: `parallel-cli ${args[0] ?? "command"} returned empty output`,
+      stderr: result.stderr.trim(),
+    };
+  }
+
+  try {
+    const data = JSON.parse(raw) as T;
+    return {
+      ok: true,
+      data,
+    };
+  } catch {
+    return {
+      ok: false,
+      message: `parallel-cli ${args[0] ?? "command"} returned invalid JSON`,
+      stderr: result.stderr.trim(),
+    };
+  }
 }
 
-function extractHeadingTitle(text: string): string | null {
-  const match = text.match(/^#{1,2}\s+(.+)/m);
-  if (!match) return null;
-  const cleaned = match[1].replace(/\*+/g, "").trim();
-  return cleaned || null;
+async function ensureParallelCliReady(signal?: AbortSignal): Promise<
+  | {
+      ok: true;
+    }
+  | {
+      ok: false;
+      message: string;
+    }
+> {
+  const versionResult = await runParallelCli(["--version"], signal);
+  if (!versionResult.ok) {
+    return {
+      ok: false,
+      message: versionResult.message,
+    };
+  }
+
+  const authResult = await runParallelCli(["auth"], signal);
+  if (!authResult.ok) {
+    const authMessage = authResult.message.toLowerCase();
+    if (
+      authMessage.includes("not authenticated") ||
+      authMessage.includes("unauthorized") ||
+      authMessage.includes("login")
+    ) {
+      return {
+        ok: false,
+        message: "parallel-cli is not authenticated. Run `parallel-cli login`.",
+      };
+    }
+
+    return {
+      ok: false,
+      message: authResult.message,
+    };
+  }
+
+  const authText = `${authResult.stdout}\n${authResult.stderr}`.toLowerCase();
+  if (authText.includes("not authenticated")) {
+    return {
+      ok: false,
+      message: "parallel-cli is not authenticated. Run `parallel-cli login`.",
+    };
+  }
+
+  return { ok: true };
 }
 
-async function searchWithParallel(
-  apiKey: string,
+async function searchWithParallelCli(
   query: string,
   maxResults: number,
   maxCharsPerResult: number,
@@ -187,108 +298,64 @@ async function searchWithParallel(
   | { ok: true; data: SearchResponse }
   | { ok: false; status?: number; message: string }
 > {
-  const body = {
-    objective: query,
-    max_results: maxResults,
-    excerpts: {
-      max_chars_per_result: maxCharsPerResult,
-    },
-  };
-
-  let response: Response;
-  try {
-    response = await fetch(PARALLEL_SEARCH_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "parallel-beta": PARALLEL_BETA_HEADER,
-      },
-      body: JSON.stringify(body),
-      signal,
-    });
-  } catch (err: unknown) {
-    return {
-      ok: false,
-      message: `Parallel search failed: ${readErrorMessage(err)}`,
-    };
-  }
+  const response = await runParallelCliJson<SearchResponse>(
+    [
+      "search",
+      query,
+      "--mode",
+      "one-shot",
+      "--max-results",
+      String(maxResults),
+      "--excerpt-max-chars-per-result",
+      String(maxCharsPerResult),
+      "--json",
+    ],
+    signal
+  );
 
   if (!response.ok) {
-    const text = await response.text();
     return {
       ok: false,
       status: response.status,
-      message: `Parallel Search API error (${response.status}): ${text}`,
+      message: response.message,
     };
   }
 
-  try {
-    const data = (await response.json()) as SearchResponse;
-    return { ok: true, data };
-  } catch {
+  if (response.data.status && response.data.status !== "ok") {
     return {
       ok: false,
-      status: response.status,
-      message: "Parallel Search API returned invalid JSON",
+      message: `parallel-cli search returned status "${response.data.status}"`,
     };
   }
+
+  return { ok: true, data: response.data };
 }
 
-async function extractWithParallel(
-  apiKey: string,
+async function extractWithParallelCli(
   url: string,
   signal?: AbortSignal
 ): Promise<ExtractSuccess | ExtractFailure> {
-  const body = {
-    urls: [url],
-    full_content: true,
-    excerpts: true,
-  };
-
-  let response: Response;
-  try {
-    response = await fetch(PARALLEL_EXTRACT_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "parallel-beta": PARALLEL_BETA_HEADER,
-      },
-      body: JSON.stringify(body),
-      signal,
-    });
-  } catch (err: unknown) {
-    return {
-      ok: false,
-      recoverable: true,
-      message: `Parallel extract failed: ${readErrorMessage(err)}`,
-    };
-  }
+  const response = await runParallelCliJson<ExtractResponse>(
+    ["fetch", url, "--full-content", "--json"],
+    signal
+  );
 
   if (!response.ok) {
-    const text = await response.text();
     return {
       ok: false,
       status: response.status,
-      recoverable: isRecoverableStatus(response.status),
-      message: `Parallel Extract API error (${response.status}): ${text}`,
+      message: response.message,
     };
   }
 
-  let data: ExtractResponse;
-  try {
-    data = (await response.json()) as ExtractResponse;
-  } catch {
+  if (response.data.status && response.data.status !== "ok") {
     return {
       ok: false,
-      status: response.status,
-      recoverable: true,
-      message: "Parallel Extract API returned invalid JSON",
+      message: `parallel-cli fetch returned status "${response.data.status}"`,
     };
   }
 
-  const results = data.results ?? [];
+  const results = response.data.results ?? [];
   const primaryResult = results.find((item) => item.url === url) ?? results[0];
   const fullContent = primaryResult?.full_content?.trim();
   const excerptContent =
@@ -303,115 +370,29 @@ async function extractWithParallel(
       ok: true,
       title: primaryResult?.title?.trim() || null,
       content,
-      responseId: data.extract_id ?? null,
+      responseId: response.data.extract_id ?? null,
     };
   }
 
   const firstError =
-    (data.errors ?? []).find((item) => item.url === url) ?? data.errors?.[0];
+    (response.data.errors ?? []).find((item) => item.url === url) ??
+    response.data.errors?.[0];
   if (firstError) {
     const message =
       firstError.content?.trim() ||
       firstError.error_type?.trim() ||
-      "Parallel Extract returned no content";
+      "parallel-cli fetch returned no content";
 
     return {
       ok: false,
       status: firstError.http_status_code,
-      recoverable: isRecoverableParallelExtractFailure(firstError),
       message,
     };
   }
 
   return {
     ok: false,
-    recoverable: true,
-    message: "Parallel Extract returned no usable content.",
-  };
-}
-
-async function extractWithGemini(
-  url: string,
-  apiKey: string,
-  signal?: AbortSignal
-): Promise<ExtractSuccess | ExtractFailure> {
-  const prompt =
-    "Extract the complete readable content from this URL as clean markdown. " +
-    "Include title, body text, code blocks, and tables. Do not summarize.\n\n" +
-    `URL: ${url}`;
-
-  const body = {
-    contents: [{ parts: [{ text: prompt }] }],
-    tools: [{ url_context: {} }],
-  };
-
-  const requestSignal = signal
-    ? AbortSignal.any([signal, AbortSignal.timeout(GEMINI_TIMEOUT_MS)])
-    : AbortSignal.timeout(GEMINI_TIMEOUT_MS);
-
-  let response: Response;
-  try {
-    response = await fetch(
-      `${GEMINI_API_BASE}/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: requestSignal,
-      }
-    );
-  } catch (err: unknown) {
-    return {
-      ok: false,
-      recoverable: false,
-      message: `Gemini fallback failed: ${readErrorMessage(err)}`,
-    };
-  }
-
-  if (!response.ok) {
-    const text = await response.text();
-    return {
-      ok: false,
-      status: response.status,
-      recoverable: false,
-      message: `Gemini fallback error (${response.status}): ${text}`,
-    };
-  }
-
-  let data: GeminiResponse;
-  try {
-    data = (await response.json()) as GeminiResponse;
-  } catch {
-    return {
-      ok: false,
-      status: response.status,
-      recoverable: false,
-      message: "Gemini fallback returned invalid JSON",
-    };
-  }
-
-  const content =
-    data.candidates?.[0]?.content?.parts
-      ?.map((part) => part.text)
-      .filter(
-        (part): part is string =>
-          typeof part === "string" && part.trim().length > 0
-      )
-      .join("\n") ?? "";
-
-  if (!content.trim()) {
-    return {
-      ok: false,
-      recoverable: false,
-      message: "Gemini fallback returned empty content",
-    };
-  }
-
-  return {
-    ok: true,
-    title: extractHeadingTitle(content),
-    content,
-    responseId: null,
+    message: "parallel-cli fetch returned no usable content",
   };
 }
 
@@ -467,17 +448,10 @@ export default function (pi: ExtensionAPI) {
       );
 
       try {
-        const parallelApiKey = getParallelApiKey();
-        if (!parallelApiKey) {
+        const ready = await ensureParallelCliReady(signal);
+        if (!ready.ok) {
           return {
-            content: [
-              {
-                type: "text",
-                text:
-                  `Missing API key. Set PARALLEL_API_KEY or ${SETTINGS_PATH} ` +
-                  "under websearch.apiKey to use websearch.",
-              },
-            ],
+            content: [{ type: "text", text: ready.message }],
             details: { ok: false },
             isError: true,
           };
@@ -487,11 +461,7 @@ export default function (pi: ExtensionAPI) {
           const url = query.trim();
           const startedAt = Date.now();
 
-          const parallelExtract = await extractWithParallel(
-            parallelApiKey,
-            url,
-            signal
-          );
+          const parallelExtract = await extractWithParallelCli(url, signal);
 
           if (parallelExtract.ok) {
             const truncated = truncateContent(parallelExtract.content);
@@ -504,7 +474,7 @@ export default function (pi: ExtensionAPI) {
               details: {
                 ok: true,
                 mode: "fetch",
-                provider: "parallel-extract",
+                provider: "parallel-cli-fetch",
                 fallbackUsed: false,
                 degraded: false,
                 url,
@@ -517,73 +487,17 @@ export default function (pi: ExtensionAPI) {
             };
           }
 
-          const geminiApiKey = getGeminiApiKey();
-          if (parallelExtract.recoverable && geminiApiKey) {
-            const geminiExtract = await extractWithGemini(
-              url,
-              geminiApiKey,
-              signal
-            );
-
-            if (geminiExtract.ok) {
-              const truncated = truncateContent(geminiExtract.content);
-              const header = geminiExtract.title
-                ? `${geminiExtract.title}\n${url}\n\n`
-                : `${url}\n\n`;
-
-              return {
-                content: [{ type: "text", text: header + truncated.text }],
-                details: {
-                  ok: true,
-                  mode: "fetch",
-                  provider: "gemini-3-flash",
-                  fallbackUsed: true,
-                  degraded: true,
-                  fallbackReason: parallelExtract.message,
-                  url,
-                  title: geminiExtract.title,
-                  query,
-                  truncated: truncated.truncated,
-                  latencyMs: Date.now() - startedAt,
-                },
-              };
-            }
-
-            return {
-              content: [
-                {
-                  type: "text",
-                  text:
-                    `Parallel extract failed: ${parallelExtract.message}\n` +
-                    `Gemini fallback failed: ${geminiExtract.message}`,
-                },
-              ],
-              details: {
-                ok: false,
-                mode: "fetch",
-                provider: "parallel-extract",
-                fallbackUsed: true,
-                degraded: true,
-                error: geminiExtract.message,
-                fallbackReason: parallelExtract.message,
-                query,
-                latencyMs: Date.now() - startedAt,
-              },
-              isError: true,
-            };
-          }
-
           return {
             content: [
               {
                 type: "text",
-                text: `Parallel extract failed: ${parallelExtract.message}`,
+                text: `Parallel fetch failed: ${parallelExtract.message}`,
               },
             ],
             details: {
               ok: false,
               mode: "fetch",
-              provider: "parallel-extract",
+              provider: "parallel-cli-fetch",
               fallbackUsed: false,
               degraded: false,
               error: parallelExtract.message,
@@ -598,8 +512,7 @@ export default function (pi: ExtensionAPI) {
         const maxResults = max_results ?? DEFAULT_MAX_RESULTS;
         const maxChars = max_chars_per_result ?? DEFAULT_MAX_CHARS;
 
-        const parallelSearch = await searchWithParallel(
-          parallelApiKey,
+        const parallelSearch = await searchWithParallelCli(
           query,
           maxResults,
           maxChars,
@@ -612,7 +525,7 @@ export default function (pi: ExtensionAPI) {
             details: {
               ok: false,
               mode: "search",
-              provider: "parallel-search",
+              provider: "parallel-cli-search",
               error: parallelSearch.message,
               status: parallelSearch.status,
               query,
@@ -634,7 +547,7 @@ export default function (pi: ExtensionAPI) {
           details: {
             ok: true,
             mode: "search",
-            provider: "parallel-search",
+            provider: "parallel-cli-search",
             fallbackUsed: false,
             degraded: false,
             count: results.length,
@@ -694,9 +607,10 @@ export default function (pi: ExtensionAPI) {
       if (details?.mode === "fetch") {
         const url = details.url || details.query || "";
         const title = details.title || "";
-        const provider = details.provider ?? "parallel-extract";
-        const providerLabel =
-          provider === "gemini-3-flash" ? "gemini" : "parallel";
+        const provider = details.provider ?? "parallel-cli-fetch";
+        const providerLabel = provider.startsWith("parallel-cli")
+          ? "parallel-cli"
+          : provider;
         const fallback = details.fallbackUsed ? " fallback" : "";
         const degraded = details.degraded ? " degraded" : "";
         const meta = ` [${providerLabel}${fallback}${degraded}]`;

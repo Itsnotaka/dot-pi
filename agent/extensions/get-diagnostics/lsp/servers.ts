@@ -1,4 +1,8 @@
-import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from "child_process";
+import {
+  execFileSync,
+  spawn,
+  type ChildProcessWithoutNullStreams,
+} from "child_process";
 import { existsSync } from "fs";
 import { dirname, join, parse } from "path";
 import { fileURLToPath, pathToFileURL } from "url";
@@ -31,6 +35,7 @@ export interface LspServer {
   proc: ChildProcessWithoutNullStreams;
   conn: JsonRpcConnection;
   diagnostics: Map<string, Diagnostic[]>;
+  diagnosticVersions: Map<string, number>;
   waiters: Map<string, Array<() => void>>;
   ready: Promise<void>;
   pullDiagnostics: boolean;
@@ -81,7 +86,7 @@ function resolveTsserverPath(root: string): string | null {
 const DEFAULT_TSSERVER_FALLBACK_PATH = resolveTsserverPath(EXTENSION_DIR);
 
 function buildTsserverInitializationOptions(
-  root: string,
+  root: string
 ): { tsserver: { path?: string; fallbackPath?: string } } | undefined {
   const path = resolveTsserverPath(root);
   const fallbackPath = DEFAULT_TSSERVER_FALLBACK_PATH;
@@ -117,7 +122,7 @@ function resolvePackageRunner(): PackageCommand | null {
 function resolveRunnerPackage(
   packageName: string,
   executable: string,
-  args: string[],
+  args: string[]
 ): Resolved | null {
   const runner = resolvePackageRunner();
   if (!runner) return null;
@@ -135,7 +140,10 @@ function resolveRunnerPackage(
   };
 }
 
-function resolveRunnerPackageSameName(packageName: string, args: string[]): Resolved | null {
+function resolveRunnerPackageSameName(
+  packageName: string,
+  args: string[]
+): Resolved | null {
   const runner = resolvePackageRunner();
   if (!runner) return null;
 
@@ -155,7 +163,9 @@ function resolveRunnerPackageSameName(packageName: string, args: string[]): Reso
 function resolveTsServer(root: string): Resolved | null {
   const bin = resolveLocalOrGlobal(root, "typescript-language-server");
   if (bin) return { cmd: bin, args: ["--stdio"] };
-  return resolveRunnerPackageSameName("typescript-language-server", ["--stdio"]);
+  return resolveRunnerPackageSameName("typescript-language-server", [
+    "--stdio",
+  ]);
 }
 
 function resolveOxlintServer(root: string): Resolved | null {
@@ -171,9 +181,11 @@ function resolveOxlintServer(root: string): Resolved | null {
 function resolveEslintServer(root: string): Resolved | null {
   const bin = resolveLocalOrGlobal(root, "vscode-eslint-language-server");
   if (bin) return { cmd: bin, args: ["--stdio"] };
-  return resolveRunnerPackage("vscode-langservers-extracted", "vscode-eslint-language-server", [
-    "--stdio",
-  ]);
+  return resolveRunnerPackage(
+    "vscode-langservers-extracted",
+    "vscode-eslint-language-server",
+    ["--stdio"]
+  );
 }
 
 function resolveTyServer(_root: string): Resolved | null {
@@ -201,7 +213,9 @@ function resolveYamlServer(root: string): Resolved | null {
 function resolveAstroServer(root: string): Resolved | null {
   const bin = resolveLocalOrGlobal(root, "astro-ls");
   if (bin) return { cmd: bin, args: ["--stdio"] };
-  return resolveRunnerPackage("@astrojs/language-server", "astro-ls", ["--stdio"]);
+  return resolveRunnerPackage("@astrojs/language-server", "astro-ls", [
+    "--stdio",
+  ]);
 }
 
 function resolveOxfmtServer(root: string): Resolved | null {
@@ -216,7 +230,10 @@ function resolveMarksmanServer(root: string): Resolved | null {
   return null;
 }
 
-const RESOLVERS: Record<DiagnosticsServerId, (root: string) => Resolved | null> = {
+const RESOLVERS: Record<
+  DiagnosticsServerId,
+  (root: string) => Resolved | null
+> = {
   tsserver: resolveTsServer,
   oxlint: resolveOxlintServer,
   eslint: resolveEslintServer,
@@ -228,11 +245,17 @@ const RESOLVERS: Record<DiagnosticsServerId, (root: string) => Resolved | null> 
   marksman: resolveMarksmanServer,
 };
 
-export function resolveServer(id: DiagnosticsServerId, root: string): Resolved | null {
+export function resolveServer(
+  id: DiagnosticsServerId,
+  root: string
+): Resolved | null {
   return RESOLVERS[id](root);
 }
 
-export function serversForLanguage(lang: Language, root: string): DiagnosticsServerId[] {
+export function serversForLanguage(
+  lang: Language,
+  root: string
+): DiagnosticsServerId[] {
   switch (lang) {
     case "python":
       return ["ty"];
@@ -287,7 +310,10 @@ function languageForServer(id: DiagnosticsServerId): Language {
   }
 }
 
-export async function spawnServer(id: DiagnosticsServerId, root: string): Promise<LspServer> {
+export async function spawnServer(
+  id: DiagnosticsServerId,
+  root: string
+): Promise<LspServer> {
   const resolved = resolveServer(id, root);
   if (!resolved) {
     throw new Error(`No ${id} language server found for ${root}.`);
@@ -301,15 +327,17 @@ export async function spawnServer(id: DiagnosticsServerId, root: string): Promis
 
   const conn = createConnection(proc);
   const diagnostics = new Map<string, Diagnostic[]>();
+  const diagnosticVersions = new Map<string, number>();
   const waiters = new Map<string, Array<() => void>>();
 
   conn.onNotification = (method, params) => {
     if (method === "textDocument/publishDiagnostics") {
       const p = params as PublishDiagnosticsParams;
       const filePath = p.uri.startsWith("file://")
-        ? decodeURIComponent(new URL(p.uri).pathname)
+        ? fileURLToPath(p.uri)
         : p.uri;
       diagnostics.set(filePath, p.diagnostics);
+      diagnosticVersions.set(filePath, (diagnosticVersions.get(filePath) ?? 0) + 1);
       const fns = waiters.get(filePath);
       if (fns) {
         for (const fn of fns) fn();
@@ -321,15 +349,32 @@ export async function spawnServer(id: DiagnosticsServerId, root: string): Promis
   conn.onRequest = async (method, params) => {
     if (method === "workspace/configuration") {
       const items = params?.items;
-      if (id === "eslint") {
-        if (Array.isArray(items)) return items.map(() => ESLINT_DEFAULT_CONFIG);
-        return [ESLINT_DEFAULT_CONFIG];
-      }
-      if (Array.isArray(items)) return items.map(() => ({}));
-      return [{}];
+      const value =
+        id === "eslint"
+          ? Array.isArray(items)
+            ? items.map(() => ESLINT_DEFAULT_CONFIG)
+            : [ESLINT_DEFAULT_CONFIG]
+          : Array.isArray(items)
+            ? items.map(() => ({}))
+            : [{}];
+      return { kind: "result", value };
     }
-    if (method === "client/registerCapability") return {};
-    return null;
+
+    if (method === "workspace/applyEdit") {
+      return {
+        kind: "result",
+        value: { applied: false, failureReason: "Workspace edits are not supported" },
+      };
+    }
+
+    if (method === "client/registerCapability") {
+      return { kind: "result", value: {} };
+    }
+
+    return {
+      kind: "error",
+      error: { code: -32601, message: `Method not found: ${method}` },
+    };
   };
 
   const rootUri = pathToFileURL(root).toString();
@@ -342,16 +387,37 @@ export async function spawnServer(id: DiagnosticsServerId, root: string): Promis
     .sendRequest("initialize", {
       processId: process.pid,
       rootUri,
-      workspaceFolders: [{ uri: rootUri, name: root.split("/").pop() }],
+      rootPath: root,
+      workspaceFolders: [
+        { uri: rootUri, name: root.split("/").pop() ?? "workspace" },
+      ],
       capabilities: {
         textDocument: {
-          publishDiagnostics: { relatedInformation: true },
+          publishDiagnostics: {
+            relatedInformation: true,
+            versionSupport: false,
+            codeDescriptionSupport: true,
+            dataSupport: true,
+          },
           diagnostic: { dynamicRegistration: false },
-          synchronization: { didOpen: true, didChange: true, didClose: true },
+          synchronization: {
+            didOpen: true,
+            didChange: true,
+            didClose: true,
+            didSave: true,
+            willSave: false,
+            willSaveWaitUntil: false,
+          },
         },
         workspace: {
           workspaceFolders: true,
           configuration: true,
+          applyEdit: true,
+          workspaceEdit: {
+            documentChanges: true,
+            resourceOperations: ["create", "rename", "delete"],
+            failureHandling: "textOnlyTransactional",
+          },
         },
       },
       initializationOptions,
@@ -368,6 +434,7 @@ export async function spawnServer(id: DiagnosticsServerId, root: string): Promis
     proc,
     conn,
     diagnostics,
+    diagnosticVersions,
     waiters,
     ready,
     pullDiagnostics: false,

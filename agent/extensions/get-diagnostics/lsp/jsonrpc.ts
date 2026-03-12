@@ -1,7 +1,21 @@
 import type { ChildProcessWithoutNullStreams } from "child_process";
 
 export type NotificationHandler = (method: string, params: any) => void;
-export type RequestHandler = (method: string, params: any) => Promise<unknown>;
+
+export interface JsonRpcError {
+  code: number;
+  message: string;
+  data?: unknown;
+}
+
+export type RequestHandlerResponse =
+  | { kind: "result"; value: unknown }
+  | { kind: "error"; error: JsonRpcError };
+
+export type RequestHandler = (
+  method: string,
+  params: any
+) => Promise<RequestHandlerResponse>;
 
 export interface JsonRpcConnection {
   sendRequest(method: string, params: any, timeoutMs?: number): Promise<any>;
@@ -26,11 +40,22 @@ export function createConnection(
   let notificationHandler: NotificationHandler | null = null;
   let requestHandler: RequestHandler | null = null;
   let buffer = Buffer.alloc(0);
+  let disposed = false;
+  let stderr = "";
 
   function send(msg: unknown) {
     const json = JSON.stringify(msg);
     const len = Buffer.byteLength(json, "utf8");
     proc.stdin.write(`Content-Length: ${len}\r\n\r\n${json}`, "utf8");
+  }
+
+  function rejectPending(error: Error) {
+    if (pending.size === 0) return;
+    for (const [, p] of pending) {
+      clearTimeout(p.timer);
+      p.reject(error);
+    }
+    pending.clear();
   }
 
   function parseMessages() {
@@ -78,13 +103,31 @@ export function createConnection(
     } else if ("id" in msg && "method" in msg) {
       if (requestHandler) {
         try {
-          const result = await requestHandler(msg.method, msg.params);
-          send({ jsonrpc: "2.0", id: msg.id, result: result ?? null });
-        } catch {
-          send({ jsonrpc: "2.0", id: msg.id, result: null });
+          const response = await requestHandler(msg.method, msg.params);
+          if (response.kind === "error") {
+            send({ jsonrpc: "2.0", id: msg.id, error: response.error });
+          } else {
+            send({ jsonrpc: "2.0", id: msg.id, result: response.value ?? null });
+          }
+        } catch (error) {
+          send({
+            jsonrpc: "2.0",
+            id: msg.id,
+            error: {
+              code: -32603,
+              message:
+                error instanceof Error && error.message
+                  ? error.message
+                  : "Internal error",
+            },
+          });
         }
       } else {
-        send({ jsonrpc: "2.0", id: msg.id, result: null });
+        send({
+          jsonrpc: "2.0",
+          id: msg.id,
+          error: { code: -32601, message: `Method not found: ${msg.method}` },
+        });
       }
     } else if ("method" in msg && !("id" in msg)) {
       notificationHandler?.(msg.method, msg.params);
@@ -94,6 +137,29 @@ export function createConnection(
   proc.stdout.on("data", (chunk: Buffer) => {
     buffer = Buffer.concat([buffer, chunk]);
     parseMessages();
+  });
+
+  proc.stderr.on("data", (chunk: Buffer) => {
+    stderr += chunk.toString("utf8");
+    if (stderr.length > 4000) {
+      stderr = stderr.slice(-4000);
+    }
+  });
+
+  proc.on("exit", (code, signal) => {
+    if (disposed) return;
+    const details = stderr.trim();
+    const reason = details
+      ? `LSP process exited${code !== null ? ` with code ${code}` : ""}${signal ? ` (signal ${signal})` : ""}: ${details}`
+      : `LSP process exited${code !== null ? ` with code ${code}` : ""}${signal ? ` (signal ${signal})` : ""}`;
+    rejectPending(new Error(reason));
+  });
+
+  proc.on("error", (error) => {
+    if (disposed) return;
+    rejectPending(
+      error instanceof Error ? error : new Error(String(error ?? "LSP process error"))
+    );
   });
 
   return {
@@ -126,11 +192,8 @@ export function createConnection(
       return requestHandler;
     },
     dispose() {
-      for (const [, p] of pending) {
-        clearTimeout(p.timer);
-        p.reject(new Error("Connection disposed"));
-      }
-      pending.clear();
+      disposed = true;
+      rejectPending(new Error("Connection disposed"));
     },
   };
 }

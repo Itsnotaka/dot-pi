@@ -1,6 +1,7 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,17 +12,19 @@ import { createConnection } from "../../../../extensions/get-diagnostics/lsp/jso
 import { getDiagnosticsForFile } from "../../../../extensions/get-diagnostics/lsp/lspClient.ts";
 
 function createMockProcess() {
+  const emitter = new EventEmitter();
   const stdin = new PassThrough();
   const stdout = new PassThrough();
-  return {
+  const stderr = new PassThrough();
+
+  return Object.assign(emitter, {
     stdin,
     stdout,
-    stderr: new PassThrough(),
+    stderr,
     kill: vi.fn(),
     killed: false,
     pid: 12345,
-    on: vi.fn(),
-  };
+  });
 }
 
 function sendLspMessage(stdout: PassThrough, msg: unknown) {
@@ -36,6 +39,7 @@ function createMockServer(
 ): LspServer {
   const conn = createConnection(proc as any);
   const diagnostics = new Map();
+  const diagnosticVersions = new Map();
   const waiters = new Map();
 
   conn.onNotification = (method, params) => {
@@ -45,6 +49,7 @@ function createMockServer(
         ? decodeURIComponent(new URL(p.uri).pathname)
         : p.uri;
       diagnostics.set(filePath, p.diagnostics);
+      diagnosticVersions.set(filePath, (diagnosticVersions.get(filePath) ?? 0) + 1);
       const fns = waiters.get(filePath);
       if (fns) {
         for (const fn of fns) fn();
@@ -60,6 +65,7 @@ function createMockServer(
     proc: proc as any,
     conn,
     diagnostics,
+    diagnosticVersions,
     waiters,
     ready: Promise.resolve(),
     pullDiagnostics: opts.pullDiagnostics,
@@ -126,6 +132,7 @@ describe("getDiagnosticsForFile", () => {
 
       const allSent = sentMessages.join("");
       expect(allSent).toContain("textDocument/didOpen");
+      expect(allSent).toContain("textDocument/didSave");
       expect(allSent).toContain("textDocument/didClose");
 
       server.conn.dispose();
@@ -134,6 +141,28 @@ describe("getDiagnosticsForFile", () => {
     it("returns empty array on timeout with no diagnostics", async () => {
       const proc = createMockProcess();
       const server = createMockServer(proc, { pullDiagnostics: false });
+
+      const result = await getDiagnosticsForFile(server, testFile);
+      expect(result).toEqual([]);
+
+      server.conn.dispose();
+    }, 10000);
+
+    it("clears stale diagnostics before waiting for fresh push results", async () => {
+      const proc = createMockProcess();
+      const server = createMockServer(proc, { pullDiagnostics: false });
+
+      server.diagnostics.set(testFile, [
+        {
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 1 },
+          },
+          severity: 1,
+          message: "stale diagnostic",
+        },
+      ]);
+      server.diagnosticVersions.set(testFile, 1);
 
       const result = await getDiagnosticsForFile(server, testFile);
       expect(result).toEqual([]);
@@ -158,6 +187,7 @@ describe("getDiagnosticsForFile", () => {
 
       const allSent = sentMessages.join("");
       expect(allSent).toContain("textDocument/didOpen");
+      expect(allSent).toContain("textDocument/didSave");
       expect(allSent).toContain("textDocument/diagnostic");
 
       const diagRequestMatch = allSent.match(
